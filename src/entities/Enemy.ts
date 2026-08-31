@@ -15,6 +15,26 @@ export interface StatusEffect {
 
 export type EliteAffix = 'FAST' | 'REGENERATING' | 'ARMORED';
 
+export function pickNearestEnemy(
+  x: number,
+  y: number,
+  enemies: Enemy[],
+  predicate?: (enemy: Enemy) => boolean
+): Enemy | null {
+  let best: Enemy | null = null;
+  let bestDist = Infinity;
+  for (const enemy of enemies) {
+    if (!enemy.isAlive) continue;
+    if (predicate && !predicate(enemy)) continue;
+    const dist = Phaser.Math.Distance.Between(x, y, enemy.x, enemy.y);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = enemy;
+    }
+  }
+  return best;
+}
+
 export class Enemy extends Phaser.GameObjects.Container {
   public enemyType: EnemyType;
   public config: EnemyConfigData;
@@ -405,10 +425,11 @@ export class Enemy extends Phaser.GameObjects.Container {
     // 1. Shielder / Blazing Aegis Próprio: Escudo absorve primeiro
     if (this.currentShield > 0) {
       finalDamage = this.takeShieldDamage(finalDamage);
-    } else if (this.enemyType !== EnemyType.SHIELDER && allEnemies) {
+    } else if (allEnemies) {
       // 2. Proteção de Shielder Aliado Próximo: Reduz 50% de dano e transfere para o Shielder
       const nearbyShielder = allEnemies.find(
-        e => e.isAlive &&
+        e => e !== this &&
+             e.isAlive &&
              e.enemyType === EnemyType.SHIELDER &&
              e.currentShield > 0 &&
              Phaser.Math.Distance.Between(this.x, this.y, e.x, e.y) <= e.shieldRadius

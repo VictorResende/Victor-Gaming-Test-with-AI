@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { DamageType, ModChipType } from '../core/Constants';
 import { MOD_CHIPS_CONFIG, ModChipData, ModChipStats } from '../config/modChipsConfig';
-import { Enemy } from './Enemy';
+import { Enemy, pickNearestEnemy } from './Enemy';
 
 export class ModChip {
   public type: ModChipType;
@@ -91,7 +91,8 @@ export class ModChip {
         );
         if (candidates.length === 0) break;
 
-        const nextTarget = candidates[0];
+        const nextTarget = pickNearestEnemy(currentSource.x, currentSource.y, candidates);
+        if (!nextTarget) break;
         hitEnemies.push(nextTarget);
 
         // Visual beam / tracer between bounced targets

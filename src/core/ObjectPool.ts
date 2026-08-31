@@ -25,6 +25,7 @@ export class ObjectPool<T> {
   }
 
   public release(item: T): void {
+    if (this.pool.includes(item)) return;
     this.pool.push(item);
   }
 

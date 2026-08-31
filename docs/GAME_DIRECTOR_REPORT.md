@@ -131,30 +131,37 @@ Ranked roughly by leverage (impact vs. effort), not strict priority:
 
 Each new level should also correct the wave-count curve (increasing, not decreasing, waves per level) and gold-economy curve (currently non-monotonic at L4).
 
+**Delivery guardrail:** do not commission all five levels as one batch. First ship a vertical slice consisting of the authoring workflow, L1.5, and one distinct boss; playtest it, measure its performance, and only then commit to L7-L10. The art-direction decision must precede the final visual production of those maps.
+
 ---
 
 ## 7. Sprint Plan
 
-Six sprints, ~2 weeks each (≈12-week / 3-month roadmap), sized for a solo developer working AI-paired at the project's demonstrated velocity. Each sprint has a stated goal and should not start until the previous sprint's Definition of Done is met — the ordering here is deliberate: **stabilize → rebalance → make UX safe to build on → make the codebase safe to extend → then and only then add content → then invest in polish/store-readiness.**
+Six delivery sprints plus a short Sprint 0. Treat this as a **16-20 week roadmap**, not a 12-week commitment: the refactor, authoring tooling, and five-level expansion are each substantial solo-developer work. A sprint starts only when the previous Definition of Done is met. The delivery order is: **identity/constraints → correctness → balance → extensibility → validated content slice → expansion and production readiness**.
 
-### Sprint 1 — Stabilization (P0 bug fixes)
-**Goal:** Nothing player-visible is silently broken. This sprint alone likely fixes the majority of any negative playtest feedback.
-- [ ] Fix `EventBus` listener leak — wrap subscriptions so each scene tracks its own handler refs and removes them on Phaser's real `SHUTDOWN`/`SLEEP` events, or namespace listeners per scene (bug #1)
+### Sprint 0 — Product and Production Constraints (2-3 days)
+**Goal:** Remove decisions that would otherwise cause rework.
+- [ ] Confirm the game name, medieval-fantasy positioning, target player, and the desired first 10-minute session; update the README and static browser metadata to match.
+- [ ] Define the Android release target and a small release scorecard (retention/playtest signal, stability, performance, store requirements).
+- [ ] Decide and document the art pipeline before new-map production: procedural, hybrid authored heroes/flagship towers, or fully authored.
+- [ ] Time-box two technical spikes: author one representative path/build-slot/teleporter layout in **Tiled and LDtk**, then choose one; and create/export one hero or tier-4-tower asset in Pixelorama to validate the hybrid-art path.
+- [ ] Freeze or explicitly defer systems that do not support the next playable release; do not grow all four meta-progression systems concurrently.
+
+**Definition of Done:** a one-page product brief and a current README describe the same Android-first game, and the art/content team has a declared visual production rule.
+
+### Sprint 1 — Correctness and Session Stability (P0)
+**Goal:** A completed or restarted match never corrupts the next match, loses critical progress, or presents a false reward.
+- [ ] Fix the `EventBus` listener leak by retaining each scene's callback references and removing only those callbacks with `off(event, callback, context)` on Phaser's actual `SHUTDOWN`/`DESTROY` lifecycle event. Do **not** use global `removeAllListeners()` as the fix (bug #1).
 - [ ] Fix `Hero.executeOvercharge` to respect its 260 radius (bug #2)
 - [ ] Wire `ObjectPool.release()` into projectile lifecycle (bug #3)
 - [ ] Replace `MenuScene`'s hardcoded achievements stub with the real `ACHIEVEMENTS_LIST` (bug #4)
 - [ ] Call `SaveManager.recordEndlessProgress()` from the Endless game-over/wave-clear path (bug #5)
 - [ ] Implement or remove `ENERGY_SURGE` (bug #6)
-- [ ] Add a boss-spawn banner/camera-beat/sting listener on `BOSS_SPAWNED` (bug #7)
-- [ ] Either implement `playMusic()` or hide the music-volume control until it does something (bug #8)
-- [ ] Fix Gatling Sniper's armor-ignore mechanic to match its description (bug #9)
-- [ ] Fix chain/homing re-targeting to pick nearest, not array order (bug #10)
 - [ ] Add `daily_master`/`boss_rush_champion` to `ACHIEVEMENTS_LIST`, reconcile achievement flavor text with real level names (bugs #11, #12)
-- [ ] Await/queue `SaveManager` writes on the level-clear/critical-progress path (bug #13)
-- [ ] Fix Shielder ally-shield-share gate (bug #14)
-- [ ] Wire real `env(safe-area-inset-*)` CSS vars in `index.html` so `SafeArea` actually reads device geometry (bug #15)
+- [ ] Add a serialized save queue and a `flush()` path for level-clear/unlock/background events; do not merely scatter `await` calls across gameplay code (bug #13).
+- [ ] Add a deterministic browser test harness for the five-transition scenario and baseline visual snapshots for the menu/HUD states that do not depend on random gameplay.
 
-**Definition of Done:** a QA pass playing 5+ consecutive matches (restart/retry/next-level repeatedly) shows a HUD that stays correct throughout, and every settings/achievement control on screen does what it visibly claims to do.
+**Definition of Done:** an automated or instrumented scenario executes start → restart → next level five times; listener counts remain stable; HUD, gold, lives, wave, and hero HP remain correct; and force-backgrounding immediately after a level clear preserves the unlock/progress. Manual QA confirms the same scenario on Android.
 
 ### Sprint 2 — Balance Pass
 **Goal:** No tower/ability/relic is a trap or a must-pick; power feels proportional to cost across the board.
@@ -165,8 +172,9 @@ Six sprints, ~2 weeks each (≈12-week / 3-month roadmap), sized for a solo deve
 - [ ] Buff low-tier tower DPS/gold (esp. Cryo level 1) or make its slow utility legible to the player
 - [ ] Re-price relics for consistent value-per-star (Kings Crown vs. Holy Grail as the reference case)
 - [ ] Smooth the gold-economy curve across levels (fix the Level 4 dip)
+- [ ] Fix Gatling Sniper's armor-ignore mechanic and nearest-target chain/homing behavior (bugs #9, #10); fix the Shielder sharing gate (bug #14).
 
-**Definition of Done:** a spreadsheet pass of DPS/gold for every tower/branch and damage/cooldown for every hero ability shows no single option more than ~2x the next-best comparable option.
+**Definition of Done:** a reproducible balance workbook/scenario suite records cumulative cost, sustained single-target and clustered DPS, effective CC uptime, damage-type resistances, and boss time-to-kill. No comparable option is >~2x the next-best option without an explicit, playtested tradeoff.
 
 ### Sprint 3 — UX Foundations & Extensibility Refactor
 **Goal:** The codebase and UI are safe to build new content and features on top of — this sprint pays down debt that would otherwise be re-paid on every future feature.
@@ -180,36 +188,37 @@ Six sprints, ~2 weeks each (≈12-week / 3-month roadmap), sized for a solo deve
 - [ ] Add a `saveVersion` field + minimal migration function to `SaveManager`
 - [ ] Add a short first-session onboarding flow (drag-to-place, target-priority, radial menu)
 - [ ] Add confirmation on Sell/Surrender for consequential actions
+- [ ] Add the boss-spawn telegraph, hide or implement the inactive music control, and correct real safe-area CSS variables (bugs #7, #8, #15).
 
-**Definition of Done:** adding a hypothetical 6th tower type or 7th level touches config + one clearly-scoped code path, not multiple 1,000+ line files.
+**Definition of Done:** adding a hypothetical 6th tower type or 7th level touches config plus one clearly-scoped code path, not multiple 1,000+ line files; core pure logic has automated tests; and all visible controls deliver their advertised result.
 
-### Sprint 4 — Level & Biome Content Expansion
-**Goal:** Ship the level plan from Section 6.
+### Sprint 4 — Validated Level-Authoring Vertical Slice
+**Goal:** Prove that content can be authored and played at the desired quality before committing to a full expansion.
 - [ ] Reconcile `BiomeType` values with actual level themes (fix or remove the leftover sci-fi enum values)
-- [ ] Build a lightweight path/obstacle authoring helper to stop hand-typing raw pixel coordinates per level
-- [ ] Author L1.5, L7, L8, L9, L10 per the table in Section 6, each with an increasing (not decreasing) wave-count curve
-- [ ] Build 2-3 distinct new boss archetypes reusing the existing phase-machine scaffolding
+- [ ] Adopt the authoring tool selected in Sprint 0 (Tiled **or** LDtk) and build its importer/adapter for paths, build slots, obstacles, and teleports; do not maintain both formats.
+- [ ] Author L1.5 with an increasing wave/gold curve and explicit target-priority teaching.
+- [ ] Build one distinct boss archetype using the existing phase-machine scaffolding.
 - [ ] Let Endless mode select any unlocked level as its base map
-- [ ] Rebalance wave/gold curves across all levels (old and new) for a smooth, increasing difficulty ramp
+- [ ] Profile cold boot, a representative standard level, and a high-wave Endless run on the target Android device.
 
-**Definition of Done:** 10-12 levels exist, each biome is visually/thematically distinct and correctly named, wave counts ramp up across the game rather than down, and Endless mode supports all unlocked maps.
+**Definition of Done:** a playtest validates the new authoring workflow, L1.5, and the new boss; target-device FPS, cold-start time, memory after a high-wave Endless run, and background/return behavior meet the Sprint 0 scorecard.
 
-### Sprint 5 — Feature Depth
-**Goal:** Give the meta-progression layers the strategic depth their scaffolding already implies.
+### Sprint 5 — Content Expansion and Focused Feature Depth
+**Goal:** Expand only after the vertical slice is validated, while adding the minimum strategic information players need.
+- [ ] Author L7-L10 with increasing wave/gold curves, using the declared art pipeline and the proven authoring workflow.
+- [ ] Build 1-2 additional boss archetypes; avoid a multi-boss finale until their individual encounters are playtested.
 - [ ] Ship a bestiary/tooltip UI surfacing enemy resistances
 - [ ] Add a support/utility tower archetype and an anti-air/anti-stealth answer
 - [ ] Gate the 5 relics behind real unlock conditions via the existing `unlockRelic()` API
-- [ ] Add a hero loadout/itemization system ("equip N of M" perks, not a flat tree)
-- [ ] Add at least one new Arcane Shrine type and 2-4 new mod chips (consider rarity tiers)
-- [ ] Design at least 2-3 explicit cross-system synergies (e.g., a relic that boosts mod-chip proc rate, a shrine themed around stealth-reveal)
+- [ ] Add only one additional meta layer or one cross-system synergy after playtest evidence supports it; defer hero itemization and broad mod-chip expansion by default.
 
-**Definition of Done:** a player who reads the bestiary can explain *why* a given tower counters a given wave, and there's at least one build-crafting choice that meaningfully spans two of the four meta systems.
+**Definition of Done:** 10-12 levels exist, each biome is correctly named and distinct; a player who reads the bestiary can explain why a tower counters a wave; and at least one validated build-crafting choice spans two meta systems.
 
 ### Sprint 6 — Audio/Art/Polish & Store Readiness
 **Goal:** Decide and execute the production-value investment, and clear the path to a real store submission.
 - [ ] Source or compose a looping menu/combat music track and wire `playMusic()`/crossfade into the existing `AudioManager` gain-node infrastructure
 - [ ] Upgrade key "hero moment" SFX (boss roar, victory fanfare, level-up) to real/layered samples; keep incidental SFX synthesized
-- [ ] Make an explicit call on the art pipeline (stay fully procedural vs. hybrid authored sprites for heroes/flagship towers) and execute it
+- [ ] Optionally use ZzFX only to prototype or pre-cache additional lightweight UI/combat SFX; it is not a replacement for authored music or hero-moment samples.
 - [ ] Add a victory-moment camera beat (zoom/particle burst) and a defeat-moment beat distinct from routine life-loss feedback
 - [ ] Add an end-of-run stats/summary screen
 - [ ] Add colorblind-safe palette verification and a reduced-motion/particle toggle
@@ -219,17 +228,17 @@ Six sprints, ~2 weeks each (≈12-week / 3-month roadmap), sized for a solo deve
 - [ ] Add a third locale (Spanish) using the existing clean i18n template
 - [ ] Add a `tsc --noEmit` + lint CI gate
 
-**Definition of Done:** the build is signable, submittable to both stores, has music, and a fresh player's first 10 minutes feel materially more polished than today's build.
+**Definition of Done:** the Android build is signable and ready for Google Play submission, has music, meets the Android release scorecard, and a fresh player's first 10 minutes feel materially more polished than today's build.
 
 ---
 
 ## 8. Immediate Next Steps (this week)
 
-1. **Decide the game's real name/identity** (medieval-fantasy "Reino dos Guardiões" appears to be the actual current direction) and update the stale README accordingly — five minutes of work that removes a recurring source of confusion for anyone new to the repo.
-2. **Fix the `EventBus` leak (Section 1, bug #1) first, in isolation**, and verify with a manual 5-restart playtest before touching anything else — everything downstream depends on this being solid.
-3. Triage the rest of Section 1's bug list into Sprint 1 and start executing top-down; most are small, independent, high-confidence fixes.
-4. Block time early in Sprint 3 (not later) for the `UIScene`/`Tower`/`Enemy` refactors — the level-content sprint (Sprint 4) will be materially slower and riskier without them.
-5. Make the art/audio investment decision (Section 4, Section 5 item 14) explicitly and early — it changes the scope of Sprint 6 significantly and is worth deciding before Sprint 4's new levels lock in a visual direction.
+1. **Run Sprint 0 now:** decide the name/identity, Android release target, and art pipeline; update the stale README and browser metadata to match.
+2. **Fix the `EventBus` leak first, in isolation**, with per-scene listener ownership rather than global removal. Verify with an instrumented five-transition scenario and Android manual QA.
+3. Complete the rest of Sprint 1's correctness/data-integrity list before moving to balance or new content.
+4. Build the balance scenario workbook before changing numbers; it is the baseline for every subsequent tuning decision.
+5. Treat L1.5 plus one boss as the gate for level expansion. Do not commit to L7-L10 until that vertical slice passes playtest and target-device performance checks.
 
 ---
 
@@ -245,6 +254,8 @@ Researched and maintenance-checked (stars, last push, license, archive status) a
 | [Kenney — Castle Kit](https://kenney.nl/assets/castle-kit) | CC0 | 75 medieval-fantasy props/tiles — biome/level-art source matching the actual (not the leftover sci-fi) theme |
 | [OpenGameArt — CC0 Kenney uploads](https://opengameart.org/content/all-cc0-uploader-kenney), [CC0 Fantasy Music & Sounds](https://opengameart.org/content/cc0-fantasy-music-sounds) | CC0 | Aggregated mirror + additional fantasy SFX/music not in the core Kenney packs |
 | [Free Fantasy Medieval Ambient Music Pack (itch.io)](https://alkakrab.itch.io/free-fantasy-medieval-ambient-music-pack), [Free Medieval Fantasy Music (itch.io)](https://lisetteamago.itch.io/free-medieval-fantasy-music) | Free/royalty-free (verify each pack's specific terms before shipping) | Directly fills the "zero background music exists" gap (bug #8, Sprint 6) — loopable ambient/combat tracks |
+| [Tiddybub/2d-assets](https://github.com/Tiddybub/2d-assets) | CC0 directory; confirm the original source for each imported pack | Curated discovery catalog for 2D sprites, fantasy UI borders, icons, effects, and tilesets; use it to find candidates, not as a blind bulk import. |
+| [game-icons/icons](https://github.com/game-icons/icons) | CC-BY; attribution required | SVG silhouettes for the bestiary, resistances, relics, and tactical modifiers. Export only the needed icons to keep the bundle small and add a credits entry if adopted. |
 
 **Recommendation:** even without a full art-pipeline commitment, swapping just the hero portraits and the 5 flagship tower turrets to Kenney-based sprites (Sprint 6, Section 5 item 14's "hybrid" option) is a low-cost, high-visible-impact change that doesn't require an artist.
 
@@ -254,7 +265,8 @@ Researched and maintenance-checked (stars, last push, license, archive status) a
 
 ### 9.3 Level authoring — addresses Section 3 (hand-typed pixel-coordinate levels) & Section 6 (5 new levels planned)
 
-- **[Tiled Map Editor](https://www.mapeditor.org/)** (open source, BSD/GPL) + **[mikewesthad/phaser-3-tilemap-blog-posts](https://github.com/mikewesthad/phaser-3-tilemap-blog-posts)** (285 stars, tutorial series, no separate license file — treat as reference/tutorial only, not a dependency). Authoring paths/build-slots/obstacles visually in Tiled and exporting JSON would replace the "~85 hand-typed coordinate lines per level" pattern and make Sprint 4's 5 new levels dramatically faster to build and iterate on than hand-editing `levelsConfig.ts` arrays.
+- **[Tiled Map Editor](https://www.mapeditor.org/)** (open source, BSD/GPL) + **[mikewesthad/phaser-3-tilemap-blog-posts](https://github.com/mikewesthad/phaser-3-tilemap-blog-posts)** (tutorial reference only, not a dependency) remains the low-risk choice for tilemap-centric levels.
+- **[LDtk](https://github.com/deepnight/ldtk)** is the alternative for this project: it exports schema-defined JSON and is particularly suitable when maps are mostly authored entities/data (paths, build slots, obstacles, teleports, wave metadata) rather than tiles. Sprint 0 must prototype the same small level in both tools and choose one. Do not add both editors or formats to the production pipeline.
 
 ### 9.4 Localization — addresses Section 5 item 4 (add a 3rd locale) & Section 3 (no shared i18n abstraction)
 
@@ -264,6 +276,7 @@ Researched and maintenance-checked (stars, last push, license, archive status) a
 
 - **[phaserjs/template-vite-ts](https://github.com/phaserjs/template-vite-ts)** (official Phaser Studio template, 193 stars, pushed this year) — useful as a config reference (tsconfig/vite.config patterns) even though this project already has its own working Vite setup.
 - **Vitest** — since the project already builds with Vite, adding Vitest is a zero-extra-tooling way to unit-test pure logic (damage/resistance math, `EconomyManager`, `WaveManager` wave generation, `SaveManager` migrations) without needing to boot a full Phaser/canvas context. [David Morais — "Testing Phaser Games with Vitest"](https://davidmorais.com/en/blog/testing-phaser-games-with-vitest) covers the pattern for separating testable game logic from Phaser scene/rendering code, which pairs naturally with the Sprint 3 refactor (pulling logic out of `UIScene`/`Enemy`/`Tower` monoliths also makes it independently testable).
+- **[Playwright visual comparisons](https://github.com/microsoft/playwright/blob/main/docs/src/test-snapshots-js.md)** — adds screenshot baselines to the existing browser-testing approach. Use it for deterministic menu/HUD/modals and the five-transition regression scenario; do not snapshot random particle-heavy combat frames without fixed seeds and timing.
 
 ### 9.6 Mobile platform tooling — addresses Section 4 & Sprint 6 (store readiness)
 
@@ -284,18 +297,31 @@ Researched and maintenance-checked (stars, last push, license, archive status) a
 
 - **[posthog-js](https://github.com/PostHog/posthog-js)** — 598 stars, **pushed today**, actively maintained. No dedicated Capacitor SDK exists, but since a Capacitor app is a WebView, the plain web JS SDK works directly with no native plugin needed — same pattern many Capacitor apps already use for PostHog. Verify PostHog's current license terms and EU/self-host vs. cloud data-residency options before shipping, since GitHub's license detector returned `NOASSERTION` for the repo (their published terms should be checked directly, not assumed from the API). Pairs naturally with `sentry-capacitor` (9.6) — crash reporting and product analytics are complementary, not overlapping.
 
-### 9.9 Reference implementations (read for ideas, not for reuse)
+### 9.9 Asset production and atlas tooling — addresses Section 4 & Sprint 0/6
+
+- **[Pixelorama](https://github.com/Orama-Interactive/Pixelorama)** — MIT open-source editor for pixel art, tiles, animation, and spritesheets. It is the recommended manual tool if Sprint 0 selects a hybrid art pipeline; its output should be packed into an atlas rather than loaded as many independent textures.
+- **[TextureAtlas Toolbox](https://github.com/MeguminBOT/TextureAtlas-Toolbox)** — supports generating and converting atlases, including Phaser 3 JSON. Evaluate it only once authored raster assets exist; current runtime-generated textures do not need it.
+- **[PixelForge](https://github.com/KodoRe/pixel-forge)** and **[pixel-asset-gen](https://github.com/MozeeB/pixel-asset-gen)** are MIT procedural pixel-art generators that can export deterministic, seeded sprites/animations/atlas metadata. They are promising for prototypes or enemy variations, but are experimental choices: validate visual consistency, exported metadata, bundle impact, and license provenance in a separate spike before adopting either.
+- **[bitcraft](https://github.com/izag8216/bitcraft)** can generate offline pixel-art placeholders, palettes, basic SFX, chiptunes, and sprite sheets. Keep it for placeholder/prototype production only; it should not determine the final art direction or music identity.
+
+### 9.10 Lightweight synthesized audio — addresses Section 4 & Sprint 6
+
+- **[ZzFX](https://github.com/KilledByAPixel/ZzFX)** — MIT, dependency-free JavaScript sound synthesis with pre-caching and a sound designer. It can speed up temporary or lightweight UI/combat SFX, but should complement the existing `AudioManager`, not replace authored music and hero/boss samples.
+
+### 9.11 Reference implementations (read for ideas, not for reuse)
 
 Searched for comparable open-source Phaser 3 TD projects to sanity-check architecture choices. None are strong exemplars — all are small solo/hobby projects with low activity (`thilo-behnke/phaser3-tower-defense`: TS + MatterJS, 2 stars, last pushed 2023; `szvitek/tower-defense`: 3 stars, 2023; `CollCrom/PhaserTD`: 9 stars, 2017). **Worth noting explicitly: this project's own architecture (config-driven tower/enemy data, tier-4 branching, damage-type resistance matrix, EventBus-based scene communication) is already more sophisticated than any of these public references** — there isn't a stronger open-source TD codebase to crib from here. The Phaser team's own [official tower-defense tutorial](https://phaser.io/news/2018/12/tower-defense-tutorial) is a reasonable sanity-check for basic path-following/targeting patterns only, not an architecture reference at this project's scale.
 
-### 9.10 Summary — what to actually adopt, and when
+### 9.12 Summary — what to actually adopt, and when
 
 - **Now / Sprint 1 (fix first, no dependency needed):** the `ObjectPool.release()` call-site fix (9.7).
-- **Now / Sprint 1-3 (near-zero risk, unblocks debt paydown):** Vitest (9.5), evaluate `phaser3-rex-plugins` (9.2) before hand-building `ModalBuilder`, Zod for `SaveManager` schema validation (see Section 10 — installed as a skill).
-- **Sprint 4 (unblocks the level-content push):** Tiled + tilemap JSON export (9.3).
-- **Sprint 5-6 (content/localization/polish):** i18next migration (9.4), Kenney asset packs for a hybrid art pass (9.1), itch.io/OpenGameArt music packs (9.1).
+- **Now / Sprint 0:** compare Tiled and LDtk with the same mini-level (9.3); validate one Pixelorama-exported hero/tower asset (9.9); choose exactly one map format and one art-pipeline rule.
+- **Sprint 1-3 (near-zero risk, unblocks debt paydown):** Vitest and Playwright visual comparisons (9.5), evaluate `phaser3-rex-plugins` (9.2) before hand-building `ModalBuilder`, Zod for `SaveManager` schema validation (see Section 10 — installed as a skill).
+- **Sprint 4:** implement only the selected Tiled or LDtk importer (9.3), then ship L1.5 and one boss as the content gate.
+- **Sprint 5-6 (content/localization/polish):** i18next migration (9.4), Kenney/CC0 assets or Pixelorama output for the declared hybrid art pass (9.1, 9.9), and licensed music from itch.io/OpenGameArt (9.1). Game Icons is allowed only with the required attribution.
 - **Sprint 6 (store readiness):** `@capacitor/assets` (9.6), `sentry-capacitor` (9.6), `@capacitor/local-notifications` (9.6), `posthog-js` (9.8).
 - **Only if profiling proves it necessary:** `timohausmann/quadtree-js` (9.7) for tower target-acquisition at high enemy counts.
+- **Prototype-only until separately approved:** PixelForge, pixel-asset-gen, bitcraft, and ZzFX (9.9, 9.10); none should be introduced as a production dependency merely because it is available.
 - **Later, only if monetization is greenlit as a product decision:** `purchases-capacitor` (9.6).
 
 ---

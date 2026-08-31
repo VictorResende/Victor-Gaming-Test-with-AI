@@ -877,22 +877,20 @@ export class Hero extends Phaser.GameObjects.Container {
   }
 
   private executeOvercharge(enemies: Enemy[], towers: Tower[]): void {
-    // Ignis: Sobrecarga Arcana
     AudioManager.getInstance().playTesla();
 
-    // Pulso arcano em área: dano e lentidão
+    const radius = 260;
     const damage = 140 + (this.level * 20);
     enemies.forEach(e => {
-      if (e.isAlive) {
+      if (e.isAlive && Phaser.Math.Distance.Between(this.x, this.y, e.x, e.y) <= radius) {
         e.takeDamage(damage, DamageType.ELECTRIC);
         e.applyStatus('SLOW', 6000, 0.4);
       }
     });
 
-    // Efeito visual de choque mágico em anel
     const shock = this.scene.add.graphics();
     shock.lineStyle(6, 0xeab308, 0.9);
-    shock.strokeCircle(this.x, this.y, 260);
+    shock.strokeCircle(this.x, this.y, radius);
     this.scene.tweens.add({
       targets: shock,
       scaleX: 1.4,
@@ -902,9 +900,9 @@ export class Hero extends Phaser.GameObjects.Container {
       onComplete: () => shock.destroy()
     });
 
-    // Encanta torres próximas (+40% velocidade de conjuração/disparo)
     towers.forEach(t => {
-      if (Phaser.Math.Distance.Between(this.x, this.y, t.x, t.y) <= 260) {
+      if (Phaser.Math.Distance.Between(this.x, this.y, t.x, t.y) <= radius) {
+        t.applyHaste(1.4, 8000);
         this.scene.tweens.add({
           targets: t,
           scaleX: 1.15,
