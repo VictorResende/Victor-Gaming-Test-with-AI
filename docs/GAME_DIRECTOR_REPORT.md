@@ -271,14 +271,61 @@ Researched and maintenance-checked (stars, last push, license, archive status) a
 | **[@capacitor/local-notifications](https://capacitorjs.com/docs/apis/local-notifications)** | Official Capacitor plugin | Actively maintained | Fills the "no reminder hook for Daily Challenge" gap (Section 5 item 15) — local (no server) scheduled notifications are enough for a daily-reminder use case, no backend needed. |
 | **[@revenuecat/purchases-capacitor](https://github.com/RevenueCat/purchases-capacitor)** | MIT | 231 stars, **pushed today** | *Only relevant if monetization is pursued* (Section 4/5 flags "no monetization surface exists"). Wraps StoreKit/Play Billing behind one API — would sit naturally on top of the existing star/gold economy in `SaveManager` if a premium-currency or rewarded-ad model is chosen later. Not a near-term recommendation — flagging for when that product decision is made. |
 
-### 9.7 Reference implementations (read for ideas, not for reuse)
+### 9.7 Performance & pooling — addresses Section 1 bug #3 (unbounded `ObjectPool` leak) & Section 4's O(towers×enemies) targeting-loop note
+
+- **Fix the existing bug before adding a dependency.** The immediate fix for bug #3 is simply calling `pool.release()` at the right lifecycle point in `Projectile.ts` — no library needed.
+- **[Phaser's own Group-based pooling](https://phaser.io/news/2021/04/game-object-pools-tutorial)** (official, zero extra dependency) is worth evaluating as a replacement for the hand-rolled `ObjectPool.ts`: `Phaser.GameObjects.Group.get()` already implements "reuse an inactive instance or create one," which is exactly what the custom pool does today, with less code to maintain.
+- **[timohausmann/quadtree-js](https://github.com/timohausmann/quadtree-js)** — MIT, 640 stars, mature/stable (last pushed 2023, but quadtrees are a solved-enough problem that this isn't a maintenance red flag). Only worth adopting if profiling actually shows `Tower.ts`'s per-frame `Phaser.Math.Distance.Between` scan across every enemy (§4's platform report) becomes a bottleneck — most likely in Endless mode at high enemy counts. Don't add this speculatively; measure first with `performance-profiling` (installed skill, see Section 10) before reaching for it.
+
+### 9.8 Analytics — addresses Section 4/5 ("no analytics integration exists")
+
+- **[posthog-js](https://github.com/PostHog/posthog-js)** — 598 stars, **pushed today**, actively maintained. No dedicated Capacitor SDK exists, but since a Capacitor app is a WebView, the plain web JS SDK works directly with no native plugin needed — same pattern many Capacitor apps already use for PostHog. Verify PostHog's current license terms and EU/self-host vs. cloud data-residency options before shipping, since GitHub's license detector returned `NOASSERTION` for the repo (their published terms should be checked directly, not assumed from the API). Pairs naturally with `sentry-capacitor` (9.6) — crash reporting and product analytics are complementary, not overlapping.
+
+### 9.9 Reference implementations (read for ideas, not for reuse)
 
 Searched for comparable open-source Phaser 3 TD projects to sanity-check architecture choices. None are strong exemplars — all are small solo/hobby projects with low activity (`thilo-behnke/phaser3-tower-defense`: TS + MatterJS, 2 stars, last pushed 2023; `szvitek/tower-defense`: 3 stars, 2023; `CollCrom/PhaserTD`: 9 stars, 2017). **Worth noting explicitly: this project's own architecture (config-driven tower/enemy data, tier-4 branching, damage-type resistance matrix, EventBus-based scene communication) is already more sophisticated than any of these public references** — there isn't a stronger open-source TD codebase to crib from here. The Phaser team's own [official tower-defense tutorial](https://phaser.io/news/2018/12/tower-defense-tutorial) is a reasonable sanity-check for basic path-following/targeting patterns only, not an architecture reference at this project's scale.
 
-### 9.8 Summary — what to actually adopt, and when
+### 9.10 Summary — what to actually adopt, and when
 
-- **Now / Sprint 1-3 (near-zero risk, unblocks debt paydown):** Vitest (9.5), evaluate `phaser3-rex-plugins` (9.2) before hand-building `ModalBuilder`.
+- **Now / Sprint 1 (fix first, no dependency needed):** the `ObjectPool.release()` call-site fix (9.7).
+- **Now / Sprint 1-3 (near-zero risk, unblocks debt paydown):** Vitest (9.5), evaluate `phaser3-rex-plugins` (9.2) before hand-building `ModalBuilder`, Zod for `SaveManager` schema validation (see Section 10 — installed as a skill).
 - **Sprint 4 (unblocks the level-content push):** Tiled + tilemap JSON export (9.3).
 - **Sprint 5-6 (content/localization/polish):** i18next migration (9.4), Kenney asset packs for a hybrid art pass (9.1), itch.io/OpenGameArt music packs (9.1).
-- **Sprint 6 (store readiness):** `@capacitor/assets` (9.6), `sentry-capacitor` (9.6), `@capacitor/local-notifications` (9.6).
+- **Sprint 6 (store readiness):** `@capacitor/assets` (9.6), `sentry-capacitor` (9.6), `@capacitor/local-notifications` (9.6), `posthog-js` (9.8).
+- **Only if profiling proves it necessary:** `timohausmann/quadtree-js` (9.7) for tower target-acquisition at high enemy counts.
 - **Later, only if monetization is greenlit as a product decision:** `purchases-capacitor` (9.6).
+
+---
+
+## 10. Installed Claude Code Skills for This Project
+
+Beyond libraries, the following Claude Code skills are installed locally (`~/.claude/skills/`) and will auto-trigger on relevant work in this repo. Each maps to a specific section/sprint above.
+
+**Game-development skills** (`davila7/claude-code-templates`, `creative-design/game-development/*`):
+
+| Skill | Maps to |
+|---|---|
+| `2d-games` | Sprite/tilemap/physics/camera and "game feel" principles — informed Section 1's UI/juice findings and Sprint 6's polish pass |
+| `game-design` | Balance/pacing/progression curves — informed Section 2 (balance) and Section 6 (level pacing) |
+| `mobile-games` | Touch UX, safe areas, performance/battery on mobile — informed Section 4 (platform) and Sprint 2/6 |
+| `game-audio` | Music/SFX layering and mix hierarchy — informed the "no background music" finding and Sprint 6's audio task |
+| `game-art` | Sprite/atlas production practices — informed the "100% procedural art" assessment in Section 4 |
+| `3d-games`, `mobile-games`, `multiplayer`, `pc-games`, `vr-ar`, `web-games` | Installed for breadth; not directly load-bearing on this 2D single-player mobile project today, but available if scope expands |
+
+**General engineering skills** (also `davila7/claude-code-templates`), installed to support the sprint plan directly:
+
+| Skill | Maps to |
+|---|---|
+| `typescript-expert` | Section 3's typing debt (untyped `branchId` strings, `RelicId`/`RelicType` enum drift) |
+| `performance-profiling` | Measuring before optimizing — gates the quadtree decision in 9.7, and the `AssetGenerator` boot-time cost in Section 4 |
+| `i18n-localization` | Section 5 item 4 (add Spanish) and the 9.4 i18next migration |
+| `android-cicd` | Directly targets Sprint 6's missing Android signing config / release pipeline (Section 4) |
+| `github-actions-creator` | Section 3's "no CI gate" and Section 4's "no CI" findings |
+| `javascript-testing-patterns` | Pairs with the Vitest recommendation (9.5) for the Sprint 3 refactor |
+| `zod-validation-expert` | Section 3's "no save schema versioning" finding — `SaveManager.load()`'s ad-hoc default-patching is a direct candidate for a Zod schema + migration function |
+| `webapp-testing` | Playwright-based in-browser verification — for testing UI/UX fixes (Sprint 2) against the running `npm run dev` build |
+| `find-bugs` | Sprint 1's bug-fixing pass — reviewing branch changes for correctness issues as fixes land |
+| `deslop` | Useful given the entire codebase is AI-authored — periodic cleanup pass for defensive-check/comment slop as sprints progress |
+| `accessibility` | Section 5 item 12 (colorblind-safe palettes, reduced motion) |
+
+These don't need to be invoked manually in most cases — Claude Code auto-selects a relevant skill when a request matches its description (e.g. asking to "add Spanish localization" will surface `i18n-localization`; "set up the Android release pipeline" will surface `android-cicd`).
