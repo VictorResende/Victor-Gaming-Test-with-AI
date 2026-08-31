@@ -6,6 +6,13 @@ const translations = {
     gameTitle: 'REINO DOS GUARDIÕES: DEFESA ARCANA',
     subtitle: 'Tower Defense Medieval de Estratégia e Magia',
     play: 'JOGAR',
+    playCampaign: 'CAMPANHA',
+    playHint: 'Escolha um mapa e defenda o reino',
+    modes: 'MODOS',
+    progress: 'PROGRESSO',
+    close: 'Fechar',
+    honorsProgress: '{unlocked} de {total}',
+    endlessBest: 'Infinito · onda {wave}',
     endless: 'MODO INFINITO',
     bossRush: 'ARENA DOS CHEFES',
     bossRushTitle: 'ARENA DOS CHEFES',
@@ -60,6 +67,7 @@ const translations = {
     cryoName: 'Santuário de Gelo',
     laserName: 'Torre Arcana',
     teslaName: 'Santuário do Trovão',
+    witchName: 'Torre da Bruxa Oracular',
 
     // Actions
     upgrade: 'EVOLUIR (Nvl {lvl})',
@@ -207,6 +215,13 @@ const translations = {
     gameTitle: 'KINGDOM DEFENDERS: ARCANE SIEGE',
     subtitle: 'Medieval Fantasy & Arcane Tower Defense',
     play: 'PLAY',
+    playCampaign: 'CAMPAIGN',
+    playHint: 'Pick a map and defend the realm',
+    modes: 'MODES',
+    progress: 'PROGRESS',
+    close: 'Close',
+    honorsProgress: '{unlocked} of {total}',
+    endlessBest: 'Endless · wave {wave}',
     endless: 'ENDLESS MODE',
     bossRush: 'BOSS RUSH',
     bossRushTitle: 'BOSS RUSH ARENA',
@@ -261,6 +276,7 @@ const translations = {
     cryoName: 'Frost Sanctum',
     laserName: 'Arcane Spire',
     teslaName: 'Storm Temple',
+    witchName: 'Oracle Witch Tower',
 
     // Actions
     upgrade: 'UPGRADE (Lvl {lvl})',

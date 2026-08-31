@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
-import { DamageType, ModChipType, TargetPriority, TowerType, GAME_CONSTANTS } from '../core/Constants';
+import { DamageType, ModChipType, TargetPriority, TowerType, GAME_CONSTANTS, TacticalModifier } from '../core/Constants';
 import { TOWERS_CONFIG, TowerConfigData, TowerLevelData, Tier4BranchData } from '../config/gameConfig';
-import { Enemy } from './Enemy';
+import { Enemy, pickNearestEnemy } from './Enemy';
 import { Projectile } from './Projectile';
 import { ModChip } from './ModChip';
 import { AudioManager } from '../managers/AudioManager';
@@ -145,7 +145,20 @@ export class Tower extends Phaser.GameObjects.Container {
     if (save.isRelicEquipped('kings_crown')) {
       multiplier *= 1.10;
     }
+    multiplier *= this.getEnergySurgeMultiplier();
     return baseDamage * multiplier;
+  }
+
+  private getEnergySurgeMultiplier(): number {
+    const modifiers = (this.scene as Phaser.Scene & { modifiers?: TacticalModifier[] }).modifiers;
+    if (!modifiers?.includes(TacticalModifier.ENERGY_SURGE)) return 1;
+    if (this.config.damageType === DamageType.LASER || this.config.damageType === DamageType.ELECTRIC) {
+      return 1.5;
+    }
+    if (this.config.damageType === DamageType.PHYSICAL) {
+      return 0.7;
+    }
+    return 1;
   }
 
   public updateStats(): void {
@@ -448,6 +461,12 @@ export class Tower extends Phaser.GameObjects.Container {
     const range = this.getEffectiveRange();
     const inRangeEnemies = enemies.filter(e => e.isAlive && Phaser.Math.Distance.Between(this.x, this.y, e.x, e.y) <= range);
 
+    // A Bruxa Oracular é a resposta estratégica contra inimigos camuflados.
+    // Mantém a revelação enquanto eles permanecem no seu círculo de vigília.
+    if (this.towerType === TowerType.WITCH) {
+      inRangeEnemies.forEach(enemy => enemy.reveal(1500));
+    }
+
     this.currentTarget = this.selectTarget(inRangeEnemies);
 
     if (this.currentTarget) {
@@ -501,7 +520,7 @@ export class Tower extends Phaser.GameObjects.Container {
 
       if (this.tier4Branch?.branchId === 'gatling_sniper') {
         // Uranium Sniper: Hi-velocity projectile, ignores armor bonus
-        proj.fire(this.x, this.y, target, damage, DamageType.PHYSICAL, 'proj_sniper', 1100, 0, undefined, undefined, allEnemies, this.equippedChip);
+        proj.fire(this.x, this.y, target, damage, DamageType.PHYSICAL, 'proj_sniper', 1100, 0, undefined, undefined, allEnemies, this.equippedChip, false, undefined, undefined, true);
       } else {
         // Gatling Vulcan or Normal
         const speed = this.tier4Branch?.branchId === 'gatling_vulcan' ? 850 : 750;
@@ -549,19 +568,40 @@ export class Tower extends Phaser.GameObjects.Container {
         this.fireTeslaArc(target, damage, chainCount, allEnemies);
       }
     }
+    // 5. WITCH — orbe elétrico que revela furtivos e explode em área curta
+    else if (this.towerType === TowerType.WITCH) {
+      AudioManager.getInstance().playTesla();
+      const proj = projectilesPool.get();
+      proj.fire(
+        this.x,
+        this.y,
+        target,
+        damage,
+        DamageType.ELECTRIC,
+        'proj_witch_orb',
+        520,
+        lvl.splashRadius || 46,
+        undefined,
+        undefined,
+        allEnemies,
+        this.equippedChip
+      );
+    }
   }
 
   private fireLaser(effectiveDelta: number, inRangeEnemies: Enemy[]): void {
     const lvl = this.getLevelData();
     const baseDps = lvl.laserDPS || 60;
-    const dps = baseDps * (this.hasteBuffTimerMs > 0 ? this.hasteMultiplier : 1.0);
+    const dps = baseDps * (this.hasteBuffTimerMs > 0 ? this.hasteMultiplier : 1.0) * this.getEnergySurgeMultiplier();
     AudioManager.getInstance().playLaser();
 
     this.laserGraphics.clear();
 
     if (this.tier4Branch?.branchId === 'laser_prism') {
       // Prism Splitter: Fires continuous beams at up to 4 targets simultaneously
-      const targets = inRangeEnemies.slice(0, 4);
+      const targets = [...inRangeEnemies]
+        .sort((a, b) => Phaser.Math.Distance.Between(this.x, this.y, a.x, a.y) - Phaser.Math.Distance.Between(this.x, this.y, b.x, b.y))
+        .slice(0, 4);
       const splitDPS = dps;
       const damageThisFrame = splitDPS * (effectiveDelta / 1000);
 
@@ -644,7 +684,8 @@ export class Tower extends Phaser.GameObjects.Container {
     for (let c = 1; c < maxChains; c++) {
       const candidates = allEnemies.filter(e => e.isAlive && !hitList.includes(e) && Phaser.Math.Distance.Between(current.x, current.y, e.x, e.y) <= 130);
       if (candidates.length === 0) break;
-      const nextTarget = candidates[0];
+      const nextTarget = pickNearestEnemy(current.x, current.y, candidates);
+      if (!nextTarget) break;
       hitList.push(nextTarget);
       nextTarget.takeDamage(currentDmg * 0.75, DamageType.ELECTRIC, true, allEnemies, ignoreArmor, isCrit);
       current = nextTarget;

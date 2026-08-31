@@ -19,12 +19,13 @@ export class KeyboardControls {
     const keyboard = this.scene.input.keyboard;
     if (!keyboard) return;
 
-    // 1-5: Selecionar Torres para Construção
+    // 1-6: Selecionar Torres para Construção
     keyboard.on('keydown-ONE', () => this.gameScene.selectTowerToBuild(TowerType.GATLING));
     keyboard.on('keydown-TWO', () => this.gameScene.selectTowerToBuild(TowerType.CANNON));
     keyboard.on('keydown-THREE', () => this.gameScene.selectTowerToBuild(TowerType.CRYO));
     keyboard.on('keydown-FOUR', () => this.gameScene.selectTowerToBuild(TowerType.LASER));
     keyboard.on('keydown-FIVE', () => this.gameScene.selectTowerToBuild(TowerType.TESLA));
+    keyboard.on('keydown-SIX', () => this.gameScene.selectTowerToBuild(TowerType.WITCH));
 
     // Q, W, E: Feitiços Globais
     keyboard.on('keydown-Q', () => this.gameScene.spellsManager.cast(SpellType.METEOR, this.scene.time.now));
@@ -74,11 +75,11 @@ export class KeyboardControls {
       }
     });
 
-    // 6, 7: Ativar Santuários Arcanos
-    keyboard.on('keydown-SIX', () => {
+    // 8, 9: Ativar Santuários Arcanos
+    keyboard.on('keydown-EIGHT', () => {
       this.gameScene.shrines[0]?.activate();
     });
-    keyboard.on('keydown-SEVEN', () => {
+    keyboard.on('keydown-NINE', () => {
       this.gameScene.shrines[1]?.activate();
     });
 

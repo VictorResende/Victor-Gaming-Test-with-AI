@@ -22,10 +22,10 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: radial-gradient(circle at center, #1c130c 0%, #0c0805 70%, #050302 100%);
-      font-family: -apple-system, BlinkMacSystemFont, "Cinzel", "Georgia", "Times New Roman", serif;
+      background: radial-gradient(circle at center, #12141c 0%, #07080f 70%, #050508 100%);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       touch-action: none;
-      cursor: crosshair;
+      cursor: default;
     }
 
     #game-container {
@@ -48,6 +48,7 @@
       max-height: 100vh;
       box-shadow: 0 0 35px rgba(0, 0, 0, 0.9), 0 0 15px rgba(217, 119, 6, 0.25);
       border-radius: 4px;
+      cursor: default;
     }
 
     /* Tooltip de atalhos web no desktop */
@@ -56,17 +57,17 @@
       bottom: 8px;
       right: 12px;
       font-size: 11px;
-      color: rgba(250, 204, 21, 0.6);
+      color: #71717a;
       pointer-events: none;
       z-index: 100;
-      letter-spacing: 0.5px;
-      font-family: monospace;
+      letter-spacing: 0.4px;
+      font-family: system-ui, -apple-system, sans-serif;
     }
   </style>
 </head>
 <body>
   <div id="game-container"></div>
-  <div id="web-helper">Atalhos: [1-5] Torres | [Q,W,E] Feitiços | [Z,X] Herói | [Espaço] Onda | [F] Tela Cheia | [P] Pausa</div>
+  <div id="web-helper">Atalhos: [1-6] Torres | [Q,W,E] Feitiços | [Z,X] Herói | [Espaço] Onda | [F] Tela Cheia | [P] Pausa</div>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
