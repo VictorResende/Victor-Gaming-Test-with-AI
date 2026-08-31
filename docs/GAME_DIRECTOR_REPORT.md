@@ -1,6 +1,8 @@
 # Game Director Report — Tower Defense Project
-**Repo:** Victor-Gaming-Test-with-AI · **Stack:** Phaser 3 + TypeScript + Vite + Capacitor (Android/iOS) · **Scope reviewed:** 16,677 lines across 36 source files
-**Prepared:** 2026-08-31 · **Method:** full-codebase audit by four parallel specialist passes (gameplay/balance, UI/UX/feel, progression/levels, platform/audio/assets), cross-checked against the project's `2d-games`, `game-design`, `mobile-games`, `game-audio`, and `game-art` skill references.
+**Repo:** Victor-Gaming-Test-with-AI · **Stack:** Phaser 3 + TypeScript + Vite + Capacitor (Android) · **Scope reviewed:** 16,677 lines across 36 source files
+**Prepared:** 2026-08-31 (updated) · **Method:** full-codebase audit by four parallel specialist passes (gameplay/balance, UI/UX/feel, progression/levels, platform/audio/assets), cross-checked against the project's `2d-games`, `game-design`, `mobile-games`, `game-audio`, and `game-art` skill references.
+
+> **Scope decision: the iOS port is out of scope.** This project will ship Android-only (plus the existing web/browser dev build). The `ios/` Capacitor project remains in the repo and stays buildable, but no further iOS-specific work — App Store readiness, `PrivacyInfo.xcprivacy`, iOS signing/provisioning, TestFlight, etc. — is planned. iOS-specific items below are marked accordingly rather than removed, in case this is revisited later.
 
 ---
 
@@ -79,7 +81,7 @@ These don't block players today, but they directly determine how fast new conten
 - **100% procedural art, 100% synthesized audio, zero binary assets in the repo.** `AssetGenerator.ts` (2,727 lines, 94 `generateTexture()` calls) draws every sprite from primitive shapes at boot; `AudioManager.ts` (746 lines) generates every sound via raw Web Audio oscillators. This is a legitimate zero-cost prototyping strategy, but it hard-caps visual/audio polish (flat vector-style "sprites," no animation frames, no atlasing — the opposite of the 2d-games skill's atlas guidance) and adds real, uncached startup CPU cost on every cold boot on low-end Android hardware.
 - **There is no background music at all** — the settings UI and `AudioManager` gain-node plumbing for it already exist and just need a track and a `playMusic()` method (see Feature Gaps).
 - **Mobile platform scaffolding is mostly solid**: orientation lock, minimal Android permissions (`INTERNET`, `VIBRATE` only), consistent bundle ID across platforms, and a genuinely well-built `SafeArea` touch-target system (44-48px minimums) — undermined only by the dead notch-detection logic (bug #15).
-- **Not store-submission-ready yet**: stock Capacitor default icons/splash (unbranded), no Android release signing config, no iOS `PrivacyInfo.xcprivacy` (likely required for `@capacitor/preferences`/Haptics usage), `compileSdkVersion 34` should be checked against current Play Store target-API policy before submission, and the keystore-ignore lines in `android/.gitignore` are commented out (risk of accidentally committing a real keystore later).
+- **Not store-submission-ready yet (Android)**: stock Capacitor default icons/splash (unbranded), no Android release signing config, `compileSdkVersion 34` should be checked against current Play Store target-API policy before submission, and the keystore-ignore lines in `android/.gitignore` are commented out (risk of accidentally committing a real keystore later). *(iOS App Store readiness, including the `PrivacyInfo.xcprivacy` gap originally noted here, is out of scope per the iOS-port decision above.)*
 - **i18n is a genuine bright spot** — exactly 173/173 keys match between `pt` and `en` with zero orphaned or missing keys. Only gaps: no third locale yet, and `index.html`'s static title/lang/tooltip text never localizes.
 - **No analytics, crash reporting, or CI** exist — combined with `sourcemap: false` in the Vite config, a production crash today would be effectively undebuggable.
 
@@ -211,7 +213,8 @@ Six sprints, ~2 weeks each (≈12-week / 3-month roadmap), sized for a solo deve
 - [ ] Add a victory-moment camera beat (zoom/particle burst) and a defeat-moment beat distinct from routine life-loss feedback
 - [ ] Add an end-of-run stats/summary screen
 - [ ] Add colorblind-safe palette verification and a reduced-motion/particle toggle
-- [ ] Replace stock Capacitor icons/splash with branded art; add Android release signing config (keep the keystore out of git); add iOS `PrivacyInfo.xcprivacy`; bump `compileSdkVersion`/`targetSdkVersion` to current Play policy
+- [ ] Replace stock Capacitor icons/splash with branded art; add Android release signing config (keep the keystore out of git); bump `compileSdkVersion`/`targetSdkVersion` to current Play policy
+- ~~Add iOS `PrivacyInfo.xcprivacy`~~ — **out of scope**, iOS port not planned (see scope decision at top of report)
 - [ ] Add a crash reporter and enable release sourcemaps
 - [ ] Add a third locale (Spanish) using the existing clean i18n template
 - [ ] Add a `tsc --noEmit` + lint CI gate
@@ -266,7 +269,7 @@ Researched and maintenance-checked (stars, last push, license, archive status) a
 
 | Tool | License | Maintenance | Fit |
 |---|---|---|---|
-| **[@capacitor/assets](https://github.com/ionic-team/capacitor-assets)** (official Ionic team) | MIT | 584 stars, pushed Jan 2026 | Generates all iOS/Android/PWA icon and splash sizes from one source image — directly replaces the manual "produce N icon sizes" work in Sprint 6's store-readiness checklist. Run once real branded art (9.1) exists. |
+| **[@capacitor/assets](https://github.com/ionic-team/capacitor-assets)** (official Ionic team) | MIT | 584 stars, pushed Jan 2026 | Generates icon/splash sizes from one source image — with iOS out of scope (see top of report), only its Android/PWA output is needed here; run once real branded art (9.1) exists. |
 | **[@getsentry/sentry-capacitor](https://github.com/getsentry/sentry-capacitor)** | MIT | 147 stars, **pushed today** | Fills the "no crash reporting exists" gap (Section 4/Sprint 6) — pairs with enabling release sourcemaps (already a Sprint 6 task) to get readable production stack traces. |
 | **[@capacitor/local-notifications](https://capacitorjs.com/docs/apis/local-notifications)** | Official Capacitor plugin | Actively maintained | Fills the "no reminder hook for Daily Challenge" gap (Section 5 item 15) — local (no server) scheduled notifications are enough for a daily-reminder use case, no backend needed. |
 | **[@revenuecat/purchases-capacitor](https://github.com/RevenueCat/purchases-capacitor)** | MIT | 231 stars, **pushed today** | *Only relevant if monetization is pursued* (Section 4/5 flags "no monetization surface exists"). Wraps StoreKit/Play Billing behind one API — would sit naturally on top of the existing star/gold economy in `SaveManager` if a premium-currency or rewarded-ad model is chosen later. Not a near-term recommendation — flagging for when that product decision is made. |
