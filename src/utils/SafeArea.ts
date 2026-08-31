@@ -96,8 +96,8 @@ export class SafeArea {
   }
 
   /**
-   * Cria um retângulo de hitbox de toque garantindo tamanho mínimo de 48x48px
-   * com preenchimento invisível em torno do centro do elemento.
+   * Hit area in object-local space. Phaser adds displayOrigin before the test,
+   * so a centered origin-0.5 container uses (0, 0, w, h), not a negative rect.
    */
   public static createTouchHitbox(
     visualWidth: number,
@@ -106,7 +106,7 @@ export class SafeArea {
   ): Phaser.Geom.Rectangle {
     const touchW = Math.max(visualWidth, minSize);
     const touchH = Math.max(visualHeight, minSize);
-    return new Phaser.Geom.Rectangle(-touchW / 2, -touchH / 2, touchW, touchH);
+    return new Phaser.Geom.Rectangle(0, 0, touchW, touchH);
   }
 
   /**

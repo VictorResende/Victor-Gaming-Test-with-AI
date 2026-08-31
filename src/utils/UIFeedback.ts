@@ -25,11 +25,12 @@ export function attachSpringFeedback(
   scene: Phaser.Scene,
   options: SpringFeedbackOptions = {}
 ): void {
-  const baseScale = options.baseScale ?? (target.scaleX || 1.0);
-  const pressScale = options.pressScale ?? (baseScale * 0.93);
-  const releaseScale = options.releaseScale ?? (baseScale * 1.06);
   const soundEnabled = options.sound ?? true;
   const hapticEnabled = options.haptic ?? true;
+
+  if (target.input) {
+    target.input.cursor = 'pointer';
+  }
 
   target.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
     if (options.disabled && options.disabled()) return;
@@ -41,42 +42,12 @@ export function attachSpringFeedback(
       HapticsManager.getInstance().tap();
     }
 
-    // Cria Efeito de Brilho / Ripple
     createRippleHighlight(scene, target, options.rippleColor || 0xfacc15, options.rippleRadius);
-
-    // Micro-interação de compressão elástica rápida
-    scene.tweens.killTweensOf(target);
-    scene.tweens.add({
-      targets: target,
-      scaleX: pressScale,
-      scaleY: pressScale,
-      duration: 60,
-      ease: 'Quad.Out',
-      onComplete: () => {
-        scene.tweens.add({
-          targets: target,
-          scaleX: releaseScale,
-          scaleY: releaseScale,
-          duration: 90,
-          ease: 'Back.Out',
-          onComplete: () => {
-            scene.tweens.add({
-              targets: target,
-              scaleX: baseScale,
-              scaleY: baseScale,
-              duration: 80,
-              ease: 'Sine.InOut'
-            });
-          }
-        });
-      }
-    });
 
     if (options.onPointerDown) {
       options.onPointerDown(pointer);
     }
 
-    // Executa onClick no pointerdown para resposta tátil instantânea no mobile e web
     if (options.onClick) {
       options.onClick(pointer);
     }

@@ -265,6 +265,20 @@ export const TOWERS_CONFIG: Record<TowerType, TowerConfigData> = {
         turretTextureKey: 'turret_tesla_plasma'
       }
     ]
+  },
+  [TowerType.WITCH]: {
+    type: TowerType.WITCH,
+    nameKey: 'witchName',
+    cost: 210,
+    damageType: DamageType.ELECTRIC,
+    baseColor: 0x312e81,
+    accentColor: 0x38bdf8,
+    description: 'Torre da Bruxa Oracular que revela inimigos ocultos e lança orbes elétricos em pequenas áreas.',
+    levels: [
+      { level: 1, damage: 34, range: 175, fireRate: 0.95, splashRadius: 46, upgradeCost: 210 },
+      { level: 2, damage: 68, range: 205, fireRate: 1.1, splashRadius: 58, upgradeCost: 330 },
+      { level: 3, damage: 125, range: 235, fireRate: 1.25, splashRadius: 72, upgradeCost: 0 }
+    ]
   }
 };
 
@@ -654,4 +668,3 @@ export const HEROES_CONFIG: Record<HeroClass, HeroConfigData> = {
     ]
   }
 };
-

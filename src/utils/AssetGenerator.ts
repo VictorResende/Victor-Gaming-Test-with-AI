@@ -538,6 +538,48 @@ export class AssetGenerator {
 
     gTesla.generateTexture('turret_tesla', 72, 72);
     gTesla.destroy();
+
+    // 7. Torre da Bruxa Oracular (WITCH -> turret_witch) - 72x72
+    // Inspirada na referência: maga de capuz violeta canalizando um orbe azul elétrico.
+    const gWitch = scene.make.graphics({ x: 0, y: 0 });
+    // Plataforma de pedra e magia runica
+    gWitch.fillStyle(0x1e1b4b, 1);
+    gWitch.fillCircle(36, 44, 24);
+    gWitch.lineStyle(3, 0x6d28d9, 1);
+    gWitch.strokeCircle(36, 44, 24);
+    gWitch.lineStyle(1.5, 0x38bdf8, 0.85);
+    gWitch.strokeCircle(36, 44, 17);
+
+    // Manto azul e chapéu violeta da oráculo
+    gWitch.fillStyle(0x1d4ed8, 1);
+    gWitch.fillRoundedRect(25, 34, 19, 24, 6);
+    gWitch.fillStyle(0xfacc15, 1);
+    gWitch.fillRect(26, 43, 17, 3);
+    gWitch.fillStyle(0xa855f7, 1);
+    gWitch.beginPath();
+    gWitch.moveTo(22, 36);
+    gWitch.lineTo(35, 4);
+    gWitch.lineTo(48, 36);
+    gWitch.closePath();
+    gWitch.fillPath();
+    gWitch.fillStyle(0xc084fc, 1);
+    gWitch.fillCircle(35, 32, 11);
+    gWitch.fillStyle(0xf3c6a5, 1);
+    gWitch.fillCircle(35, 34, 7);
+
+    // Cajado e orbe de tempestade em levitação
+    gWitch.lineStyle(4, 0x7c4a24, 1);
+    gWitch.lineBetween(45, 51, 55, 18);
+    gWitch.fillStyle(0x0284c7, 0.9);
+    gWitch.fillCircle(57, 14, 11);
+    gWitch.fillStyle(0x38bdf8, 1);
+    gWitch.fillCircle(55, 12, 7);
+    gWitch.fillStyle(0xffffff, 1);
+    gWitch.fillCircle(53, 10, 3);
+    gWitch.lineStyle(2, 0xe0f2fe, 0.9);
+    gWitch.strokeCircle(57, 14, 11);
+    gWitch.generateTexture('turret_witch', 72, 72);
+    gWitch.destroy();
   }
 
   // ==========================================
@@ -1254,6 +1296,24 @@ export class AssetGenerator {
 
     gPlasmaProj.generateTexture('proj_plasma', 20, 20);
     gPlasmaProj.destroy();
+
+    // 8. Orbe da Bruxa Oracular (proj_witch_orb) - 24x24
+    const gWitchOrb = scene.make.graphics({ x: 0, y: 0 });
+    gWitchOrb.fillStyle(0x312e81, 0.9);
+    gWitchOrb.fillCircle(12, 12, 11);
+    gWitchOrb.fillStyle(0x0284c7, 1);
+    gWitchOrb.fillCircle(12, 12, 8);
+    gWitchOrb.fillStyle(0x67e8f9, 1);
+    gWitchOrb.fillCircle(10, 9, 4);
+    gWitchOrb.lineStyle(2, 0xfef08a, 0.9);
+    gWitchOrb.beginPath();
+    gWitchOrb.moveTo(5, 13);
+    gWitchOrb.lineTo(10, 16);
+    gWitchOrb.lineTo(13, 11);
+    gWitchOrb.lineTo(19, 13);
+    gWitchOrb.strokePath();
+    gWitchOrb.generateTexture('proj_witch_orb', 24, 24);
+    gWitchOrb.destroy();
   }
 
   // ==========================================

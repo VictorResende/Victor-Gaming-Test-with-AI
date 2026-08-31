@@ -30,7 +30,8 @@ export enum TowerType {
   CANNON = 'CANNON',   // Catapulta de Bombardeio (Catapult Bombard)
   CRYO = 'CRYO',       // Santuário de Gelo (Frost Sanctum)
   LASER = 'LASER',     // Torre Arcana (Arcane Spire)
-  TESLA = 'TESLA'      // Santuário do Trovão (Storm Temple)
+  TESLA = 'TESLA',     // Santuário do Trovão (Storm Temple)
+  WITCH = 'WITCH'      // Torre da Bruxa Oracular (Oracle Witch Tower)
 }
 
 export enum TargetPriority {
@@ -125,5 +126,4 @@ export const GAME_CONSTANTS = {
   HERO_RESPAWN_TIME_MS: 15000,
   MAX_EQUIPPED_RELICS: 3
 };
-
 

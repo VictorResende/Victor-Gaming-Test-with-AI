@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { DamageType } from '../core/Constants';
-import { Enemy } from './Enemy';
+import { Enemy, pickNearestEnemy } from './Enemy';
 import { ModChip } from './ModChip';
 import { HapticsManager } from '../managers/HapticsManager';
 
@@ -17,6 +17,7 @@ export class Projectile extends Phaser.GameObjects.Sprite {
   private isHoming = false;
   private modChip: ModChip | null = null;
   private enemiesRef: Enemy[] = [];
+  private pierceArmor = false;
   public isActive = false;
 
   constructor(scene: Phaser.Scene) {
@@ -40,7 +41,8 @@ export class Projectile extends Phaser.GameObjects.Sprite {
     modChip?: ModChip | null,
     isHoming = false,
     burnDPS?: number,
-    burnDurationMs?: number
+    burnDurationMs?: number,
+    ignoreArmor = false
   ): void {
     this.setPosition(startX, startY);
     this.setTexture(textureKey);
@@ -56,6 +58,7 @@ export class Projectile extends Phaser.GameObjects.Sprite {
     this.isHoming = isHoming;
     this.burnDPS = burnDPS;
     this.burnDurationMs = burnDurationMs;
+    this.pierceArmor = ignoreArmor;
     this.isActive = true;
     this.setVisible(true);
     this.setAlpha(1);
@@ -74,7 +77,7 @@ export class Projectile extends Phaser.GameObjects.Sprite {
       targetX = this.target.x;
       targetY = this.target.y;
     } else if (this.isHoming && this.enemiesRef.length > 0) {
-      const next = this.enemiesRef.find(e => e.isAlive);
+      const next = pickNearestEnemy(this.x, this.y, this.enemiesRef);
       if (next) {
         this.target = next;
         targetX = next.x;
@@ -105,7 +108,7 @@ export class Projectile extends Phaser.GameObjects.Sprite {
     // Mod Chip Crit & Damage calculations
     let hitDamage = this.damage;
     let isCrit = false;
-    let ignoreArmor = false;
+    let ignoreArmor = this.pierceArmor;
 
     if (this.modChip) {
       const critRoll = this.modChip.checkCritical();
@@ -115,7 +118,7 @@ export class Projectile extends Phaser.GameObjects.Sprite {
       }
       const modResult = this.modChip.modifyDamage(hitDamage, this.target || undefined);
       hitDamage = modResult.finalDamage;
-      ignoreArmor = modResult.ignoreArmor;
+      ignoreArmor = ignoreArmor || modResult.ignoreArmor;
     }
 
     if (this.splashRadius > 0) {

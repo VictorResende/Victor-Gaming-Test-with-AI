@@ -2,6 +2,23 @@ import Phaser from 'phaser';
 
 export const EventBus = new Phaser.Events.EventEmitter();
 
+type BusHandler = Function;
+
+/** Scene-scoped EventBus subscriptions that can be removed without `removeAllListeners()`. */
+export class BoundBus {
+  private bindings: Array<{ event: string; fn: BusHandler }> = [];
+
+  public on(event: string, fn: BusHandler): void {
+    EventBus.on(event, fn);
+    this.bindings.push({ event, fn });
+  }
+
+  public offAll(): void {
+    this.bindings.forEach(({ event, fn }) => EventBus.off(event, fn));
+    this.bindings = [];
+  }
+}
+
 export const GameEvents = {
   GOLD_CHANGED: 'GOLD_CHANGED',
   LIVES_CHANGED: 'LIVES_CHANGED',

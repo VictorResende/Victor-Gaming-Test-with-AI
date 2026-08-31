@@ -2,17 +2,28 @@ import Phaser from 'phaser';
 import { t, setLanguage, getLanguage } from '../i18n/locales';
 import { SaveManager } from '../managers/SaveManager';
 import { AudioManager } from '../managers/AudioManager';
-import { HapticsManager } from '../managers/HapticsManager';
 import { getDailyChallenge, MODIFIER_INFO } from '../config/dailyChallengeConfig';
 import { SafeArea, SafeAreaBounds, SafeAreaInsets } from '../utils/SafeArea';
-import { attachSpringFeedback } from '../utils/UIFeedback';
+import { ACHIEVEMENTS_LIST } from '../managers/AchievementsManager';
 
+const FONT = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+const MIN_TOUCH = 48;
+
+interface ModalHandle {
+  root: Phaser.GameObjects.Container;
+  close: () => void;
+}
+
+/**
+ * Main menu: cinematic brand column + primary campaign CTA, compact mode cards,
+ * and a glass overlay system for daily / settings / achievements.
+ */
 export class MenuScene extends Phaser.Scene {
-  private settingsModal: Phaser.GameObjects.Container | null = null;
-  private achievementsModal: Phaser.GameObjects.Container | null = null;
-  private dailyModal: Phaser.GameObjects.Container | null = null;
   private safeBounds!: SafeAreaBounds;
   private safeInsets!: SafeAreaInsets;
+  private highContrast = false;
+  private activeModal: ModalHandle | null = null;
+  private escHandler?: () => void;
 
   constructor() {
     super('MenuScene');
@@ -22,188 +33,78 @@ export class MenuScene extends Phaser.Scene {
     const { width, height } = this.scale;
     this.safeInsets = SafeArea.getInsets(this);
     this.safeBounds = SafeArea.getBounds(this);
+    this.highContrast = SaveManager.getInstance().isHighContrast();
 
-    // 1. Fundo Arcano Cósmico com Partículas de Mana & Estrelas
+    this.input.topOnly = true;
+    this.input.setDefaultCursor('default');
+
     this.createBackground(width, height);
+    this.createBrandColumn(width, height);
+    this.createActionColumn(width, height);
+    this.createTopBar(width);
+    this.bindEscape();
 
-    // 2. Brasão Real & Título Épico do Reino
-    const crestY = Math.max(this.safeInsets.top + 36, height * 0.08);
-    this.createCoatOfArms(width / 2, crestY);
-
-    const titleY = crestY + 54;
-    // Título Principal com borda de ouro forjado e brilho arcano
-    const titleText = this.add.text(width / 2, titleY, t('gameTitle'), {
-      fontSize: '32px',
-      fontStyle: 'bold',
-      color: '#fef08a',
-      stroke: '#451a03',
-      strokeThickness: 8,
-      shadow: { blur: 18, color: '#f59e0b', fill: true }
-    }).setOrigin(0.5);
-
-    // Efeito de pulso de luz no título
-    this.tweens.add({
-      targets: titleText,
-      scaleX: 1.02,
-      scaleY: 1.02,
-      duration: 2200,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.closeActiveModal();
+      if (this.escHandler && this.input.keyboard) {
+        this.input.keyboard.off('keydown-ESC', this.escHandler);
+      }
+      this.input.setDefaultCursor('default');
     });
+  }
 
-    // Fita de Pergaminho do Subtítulo
-    const subtitleY = titleY + 36;
-    const subRibbon = this.add.graphics();
-    subRibbon.fillStyle(0x2d180a, 0.9);
-    subRibbon.fillRoundedRect(width / 2 - 180, subtitleY - 14, 360, 28, 6);
-    subRibbon.lineStyle(1.5, 0xd97706, 0.85);
-    subRibbon.strokeRoundedRect(width / 2 - 180, subtitleY - 14, 360, 28, 6);
+  private bindEscape(): void {
+    this.escHandler = () => this.closeActiveModal();
+    this.input.keyboard?.on('keydown-ESC', this.escHandler);
+  }
 
-    this.add.text(width / 2, subtitleY, `⚔️ ${t('subtitle')} ⚔️`, {
-      fontSize: '13px',
-      fontStyle: 'bold',
-      color: '#fde68a',
-      letterSpacing: 1
-    }).setOrigin(0.5);
+  private closeActiveModal(): void {
+    if (!this.activeModal) return;
+    this.activeModal.close();
+    this.activeModal = null;
+  }
 
-    // 3. Indicador Real de Estrelas / Honra (Top Right Seguro)
-    const save = SaveManager.getInstance().getData();
-    const starCardX = this.safeBounds.right - 65;
-    const starCardY = this.safeInsets.top + 34;
-    const starCard = this.add.container(starCardX, starCardY);
+  private uiStroke(): number {
+    return this.highContrast ? 0xf8fafc : 0x3f3f46;
+  }
 
-    const starBg = this.add.graphics();
-    starBg.fillStyle(0x1c140e, 0.95);
-    starBg.fillRoundedRect(-60, -20, 120, 40, 8);
-    starBg.lineStyle(2, 0xfacc15, 1);
-    starBg.strokeRoundedRect(-60, -20, 120, 40, 8);
-    starBg.lineStyle(1, 0x92400e, 0.7);
-    starBg.strokeRoundedRect(-57, -17, 114, 34, 6);
-
-    // Gemas decorativas de canto
-    starBg.fillStyle(0xef4444, 1);
-    starBg.fillCircle(-52, 0, 3.5);
-    starBg.fillCircle(52, 0, 3.5);
-
-    const starTxt = this.add.text(0, 0, `⭐ ${save.availableStars}`, {
-      fontSize: '16px',
-      fontStyle: 'bold',
-      color: '#facc15',
-      stroke: '#451a03',
-      strokeThickness: 2
-    }).setOrigin(0.5);
-
-    starCard.add([starBg, starTxt]);
-    starCard.setSize(120, 48);
-    starCard.setInteractive(SafeArea.createTouchHitbox(120, 48), Phaser.Geom.Rectangle.Contains);
-
-    // 4. Grid de Botões Nobres em Estandarte Real (2 Colunas Centralizadas)
-    const colLeftX = width / 2 - 145;
-    const colRightX = width / 2 + 145;
-    const btnStartY = Math.max(subtitleY + 52, height * 0.32);
-    const btnSpacing = 58;
-
-    // Coluna 1 (Esquerda)
-    this.createRoyalMenuButton(colLeftX, btnStartY, `⚔️ ${t('play')}`, 0x1e3a8a, 0x60a5fa, () => {
-      this.scene.start('LevelSelectScene');
-    });
-
-    this.createRoyalMenuButton(colLeftX, btnStartY + btnSpacing, `📜 ${t('dailyChallenge')}`, 0x065f46, 0x34d399, () => {
-      this.showDailyChallengeModal();
-    });
-
-    this.createRoyalMenuButton(colLeftX, btnStartY + btnSpacing * 2, `👑 ${t('bossRush')}`, 0x92400e, 0xfbbf24, () => {
-      this.scene.start('GameScene', { isBossRush: true });
-    });
-
-    this.createRoyalMenuButton(colLeftX, btnStartY + btnSpacing * 3, `♾️ ${t('endless')}`, 0x581c87, 0xc084fc, () => {
-      this.scene.start('GameScene', { levelId: 1, isEndless: true });
-    });
-
-    // Coluna 2 (Direita)
-    this.createRoyalMenuButton(colRightX, btnStartY, `📖 ${t('techTree')}`, 0x115e59, 0x2dd4bf, () => {
-      this.scene.start('TechTreeScene');
-    });
-
-    this.createRoyalMenuButton(colRightX, btnStartY + btnSpacing, `👑 ${t('heroTalents')}`, 0x78350f, 0xfacc15, () => {
-      this.scene.start('HeroTalentsScene');
-    });
-
-    this.createRoyalMenuButton(colRightX, btnStartY + btnSpacing * 2, `🏆 ${t('achievements')}`, 0x3730a3, 0x818cf8, () => {
-      this.showAchievementsModal();
-    });
-
-    this.createRoyalMenuButton(colRightX, btnStartY + btnSpacing * 3, `⚙️ ${t('settings')}`, 0x44403c, 0xa8a29e, () => {
-      this.showSettingsModal();
-    });
-
-    // Rodapé de Honra - Recorde do Boss Rush
-    if (save.bossRushBestWave > 0) {
-      const footerY = Math.min(height - 24, btnStartY + btnSpacing * 3.8);
-      const bestCard = this.add.container(width / 2, footerY);
-      const bBg = this.add.graphics();
-      bBg.fillStyle(0x2d180a, 0.9);
-      bBg.fillRoundedRect(-140, -15, 280, 30, 8);
-      bBg.lineStyle(1.5, 0xfacc15, 0.8);
-      bBg.strokeRoundedRect(-140, -15, 280, 30, 8);
-
-      const bTxt = this.add.text(0, 0, `👑 ${t('bossRushBest', { wave: save.bossRushBestWave })}`, {
-        fontSize: '12px',
-        fontStyle: 'bold',
-        color: '#facc15',
-        stroke: '#451a03',
-        strokeThickness: 2
-      }).setOrigin(0.5);
-
-      bestCard.add([bBg, bTxt]);
-    }
+  private panelFill(): number {
+    return this.highContrast ? 0x09090b : 0x12141c;
   }
 
   // ==========================================
-  // FUNDO ARCANO & PARTÍCULAS DE MANA
+  // ATMOSPHERE
   // ==========================================
   private createBackground(width: number, height: number): void {
     const bg = this.add.graphics();
-    // Gradiente imperial profundo: Noite Arcana -> Púrpura Celestial
-    bg.fillGradientStyle(0x0c0a17, 0x0c0a17, 0x1a0f2e, 0x080612, 1);
+    bg.fillGradientStyle(0x07080f, 0x0b1020, 0x12081a, 0x050508, 1);
     bg.fillRect(0, 0, width, height);
 
-    // Círculo de Invocação Rúnico Sutil no Centro
-    const runeCircle = this.add.graphics();
-    runeCircle.lineStyle(1, 0x6366f1, 0.15);
-    runeCircle.strokeCircle(width / 2, height / 2, 280);
-    runeCircle.strokeCircle(width / 2, height / 2, 240);
-    runeCircle.lineStyle(1, 0xfacc15, 0.12);
-    runeCircle.strokeCircle(width / 2, height / 2, 200);
+    const glow = this.add.graphics();
+    glow.fillStyle(0xf59e0b, 0.07);
+    glow.fillCircle(width * 0.22, height * 0.38, 280);
+    glow.fillStyle(0x6366f1, 0.08);
+    glow.fillCircle(width * 0.78, height * 0.55, 320);
 
-    // Efeito de rotação lenta no círculo rúnico
-    this.tweens.add({
-      targets: runeCircle,
-      angle: 360,
-      duration: 90000,
-      repeat: -1
-    });
+    const vignette = this.add.graphics();
+    vignette.fillStyle(0x000000, 0.35);
+    vignette.fillRect(0, 0, width, 72);
+    vignette.fillRect(0, height - 64, width, 64);
 
-    // Partículas de Mana Flutuantes (Safira, Ametista e Ouro Celestial)
-    const colors = [0x38bdf8, 0xa855f7, 0xfacc15, 0x34d399];
-    for (let i = 0; i < 50; i++) {
-      const color = colors[i % colors.length];
-      const radius = Phaser.Math.Between(1, 3);
+    const colors = [0x38bdf8, 0xa78bfa, 0xfbbf24];
+    for (let i = 0; i < 18; i++) {
       const star = this.add.circle(
         Phaser.Math.Between(0, width),
         Phaser.Math.Between(0, height),
-        radius,
-        color,
-        Phaser.Math.FloatBetween(0.2, 0.75)
+        Phaser.Math.Between(1, 2),
+        colors[i % colors.length],
+        Phaser.Math.FloatBetween(0.25, 0.7)
       );
-
       this.tweens.add({
         targets: star,
-        y: star.y - Phaser.Math.Between(30, 80),
-        x: star.x + Phaser.Math.Between(-20, 20),
-        alpha: { from: star.alpha, to: 0.1 },
-        duration: Phaser.Math.Between(3500, 7000),
+        y: star.y - Phaser.Math.Between(16, 40),
+        alpha: 0.12,
+        duration: Phaser.Math.Between(4200, 7800),
         yoyo: true,
         repeat: -1,
         ease: 'Sine.easeInOut'
@@ -211,462 +112,586 @@ export class MenuScene extends Phaser.Scene {
     }
   }
 
-  // ==========================================
-  // BRASÃO REAL HERALDICO DOURADO
-  // ==========================================
-  private createCoatOfArms(x: number, y: number): void {
-    const crest = this.add.graphics();
-
-    // Espadas Cruzadas de Prata e Ouro atrás do escudo
-    crest.lineStyle(4, 0x94a3b8, 0.9);
-    crest.lineBetween(x - 32, y - 28, x + 32, y + 28);
-    crest.lineBetween(x + 32, y - 28, x - 32, y + 28);
-    // Cabos das espadas em ouro
-    crest.fillStyle(0xfacc15, 1);
-    crest.fillCircle(x - 32, y - 28, 4);
-    crest.fillCircle(x + 32, y - 28, 4);
-    crest.fillCircle(x - 32, y + 28, 4);
-    crest.fillCircle(x + 32, y + 28, 4);
-
-    // Escudo Heráldico Nobre
-    crest.fillStyle(0x1e3a8a, 1);
-    crest.fillTriangle(x - 22, y - 16, x + 22, y - 16, x, y + 24);
-    crest.fillStyle(0x92400e, 1);
-    crest.fillTriangle(x, y - 16, x + 22, y - 16, x, y + 24);
-
-    crest.lineStyle(2.5, 0xfacc15, 1);
-    crest.strokeTriangle(x - 22, y - 16, x + 22, y - 16, x, y + 24);
-
-    // Coroa Real Imperial no Topo
-    crest.fillStyle(0xfacc15, 1);
-    crest.fillRect(x - 16, y - 26, 32, 6);
-    crest.fillTriangle(x - 16, y - 26, x - 10, y - 36, x - 4, y - 26);
-    crest.fillTriangle(x - 6, y - 26, x, y - 38, x + 6, y - 26);
-    crest.fillTriangle(x + 4, y - 26, x + 10, y - 36, x + 16, y - 26);
-
-    // Rubis da Coroa
-    crest.fillStyle(0xef4444, 1);
-    crest.fillCircle(x, y - 38, 2.5);
-    crest.fillCircle(x - 10, y - 36, 2);
-    crest.fillCircle(x + 10, y - 36, 2);
-    crest.fillCircle(x, y - 23, 2);
-  }
-
-  // ==========================================
-  // BOTÕES NOBRES COM MOLDURA DOURADA & PERGAMINHO
-  // ==========================================
-  private createRoyalMenuButton(
-    x: number,
-    y: number,
-    text: string,
-    baseColor: number,
-    highlightColor: number,
-    onClick: () => void
-  ): Phaser.GameObjects.Container {
-    const container = this.add.container(x, y);
+  private createTopBar(width: number): void {
+    const save = SaveManager.getInstance().getData();
+    const y = this.safeInsets.top + 28;
+    const chip = this.add.container(this.safeBounds.right - 72, y);
 
     const bg = this.add.graphics();
-    // Fundo nobre em couro escuro / ferro
-    bg.fillStyle(0x1c140e, 0.96);
-    bg.fillRoundedRect(-125, -23, 250, 46, 10);
-
-    // Preenchimento de tom heráldico interior
-    bg.fillStyle(baseColor, 0.85);
-    bg.fillRoundedRect(-121, -19, 242, 38, 8);
-
-    // Borda dupla em ouro forjado
-    bg.lineStyle(2.5, 0xfacc15, 1);
-    bg.strokeRoundedRect(-125, -23, 250, 46, 10);
-    bg.lineStyle(1, 0x78350f, 0.8);
-    bg.strokeRoundedRect(-122, -20, 244, 40, 7);
-
-    // Cantoneiras douradas ornamentadas
-    bg.fillStyle(0xfde047, 1);
-    bg.fillRect(-123, -21, 5, 5);
-    bg.fillRect(118, -21, 5, 5);
-    bg.fillRect(-123, 16, 5, 5);
-    bg.fillRect(118, 16, 5, 5);
-
-    const label = this.add.text(0, 0, text, {
+    this.drawPill(bg, -64, -18, 128, 36, this.panelFill(), this.uiStroke());
+    const label = this.add.text(0, 0, `★  ${save.availableStars}`, {
+      fontFamily: FONT,
       fontSize: '15px',
-      fontStyle: 'bold',
-      color: '#ffffff',
-      stroke: '#1c1917',
-      strokeThickness: 3,
-      letterSpacing: 1
+      fontStyle: '600',
+      color: '#fbbf24'
     }).setOrigin(0.5);
 
-    container.add([bg, label]);
-    container.setSize(250, 48);
-    container.setInteractive(SafeArea.createTouchHitbox(250, 48), Phaser.Geom.Rectangle.Contains);
+    chip.add([bg, label]);
+    chip.setSize(128, MIN_TOUCH);
+  }
 
-    attachSpringFeedback(container, this, {
-      rippleColor: highlightColor,
-      onClick
+  private createBrandColumn(_width: number, height: number): void {
+    const save = SaveManager.getInstance().getData();
+    const x = this.safeBounds.left + 56;
+    const y = height * 0.38;
+
+    const kicker = this.add.text(x, y - 86, t('subtitle').toUpperCase(), {
+      fontFamily: FONT,
+      fontSize: '12px',
+      fontStyle: '600',
+      color: '#fbbf24',
+      letterSpacing: 2.4
+    }).setOrigin(0, 0.5);
+
+    const title = this.add.text(x, y - 28, t('gameTitle'), {
+      fontFamily: FONT,
+      fontSize: '34px',
+      fontStyle: '800',
+      color: this.highContrast ? '#ffffff' : '#fafafa',
+      wordWrap: { width: 520 },
+      lineSpacing: 6
+    }).setOrigin(0, 0.5);
+
+    const hint = this.add.text(x, y + 48, t('playHint'), {
+      fontFamily: FONT,
+      fontSize: '15px',
+      color: '#a1a1aa'
+    }).setOrigin(0, 0.5);
+
+    const records: string[] = [];
+    if (save.bossRushBestWave > 0) {
+      records.push(t('bossRushBest', { wave: save.bossRushBestWave }));
+    }
+    if (save.endlessBestWave > 0) {
+      records.push(t('endlessBest', { wave: save.endlessBestWave }));
+    }
+    if (records.length > 0) {
+      this.add.text(x, Math.min(height - this.safeInsets.bottom - 28, y + 108), records.join('   ·   '), {
+        fontFamily: FONT,
+        fontSize: '13px',
+        color: '#71717a'
+      }).setOrigin(0, 0.5);
+    }
+
+    void kicker;
+    void title;
+    void hint;
+  }
+
+  private createActionColumn(width: number, height: number): void {
+    const colX = Math.min(width - this.safeInsets.right - 220, width * 0.72);
+    const startY = height * 0.28;
+
+    this.add.text(colX - 168, startY - 58, t('modes'), {
+      fontFamily: FONT,
+      fontSize: '11px',
+      fontStyle: '700',
+      color: '#71717a',
+      letterSpacing: 1.8
+    }).setOrigin(0, 0.5);
+
+    this.createPrimaryButton(colX, startY, t('playCampaign'), () => {
+      this.navigate('LevelSelectScene');
     });
 
-    return container;
+    const cardY = startY + 108;
+    const gap = 124;
+    this.createModeCard(colX - gap, cardY, '📜', t('dailyChallenge'), 0x34d399, () => this.showDailyChallengeModal());
+    this.createModeCard(colX, cardY, '👑', t('bossRush'), 0xfbbf24, () => {
+      this.navigate('GameScene', { isBossRush: true });
+    });
+    this.createModeCard(colX + gap, cardY, '∞', t('endless'), 0xa78bfa, () => {
+      this.navigate('GameScene', { levelId: 1, isEndless: true });
+    });
+
+    this.add.text(colX - 168, cardY + 86, t('progress'), {
+      fontFamily: FONT,
+      fontSize: '11px',
+      fontStyle: '700',
+      color: '#71717a',
+      letterSpacing: 1.8
+    }).setOrigin(0, 0.5);
+
+    const tileY = cardY + 132;
+    const tileGap = 92;
+    this.createIconTile(colX - tileGap * 1.5, tileY, '📖', t('techTree'), () => this.navigate('TechTreeScene'));
+    this.createIconTile(colX - tileGap * 0.5, tileY, '✦', t('heroTalents'), () => this.navigate('HeroTalentsScene'));
+    this.createIconTile(colX + tileGap * 0.5, tileY, '◆', t('achievements'), () => this.showAchievementsModal());
+    this.createIconTile(colX + tileGap * 1.5, tileY, '⚙', t('settings'), () => this.showSettingsModal());
+  }
+
+  /** Start the next scene on the following tick so this pointer event cannot hit it. */
+  private navigate(key: string, data?: object): void {
+    if (!this.input.enabled) return;
+    this.input.enabled = false;
+    this.time.delayedCall(0, () => this.scene.start(key, data));
   }
 
   // ==========================================
-  // SELO DE CERA VERMELHA IMPERIAL
+  // CONTROLS
   // ==========================================
-  private drawWaxSeal(g: Phaser.GameObjects.Graphics, cx: number, cy: number, radius = 22): void {
-    // Cera derretida com bordas orgânicas
-    g.fillStyle(0x7f1d1d, 1);
-    g.fillCircle(cx, cy, radius + 3);
-    g.fillStyle(0x991b1b, 1);
-    g.fillCircle(cx, cy, radius);
-    g.fillStyle(0xb91c1c, 1);
-    g.fillCircle(cx - 2, cy - 2, radius - 4);
+  private createPrimaryButton(x: number, y: number, label: string, onClick: () => void): void {
+    const w = 360;
+    const h = 58;
+    const container = this.add.container(x, y);
+    const bg = this.add.graphics();
+    bg.fillStyle(0xf59e0b, 1);
+    bg.fillRoundedRect(-w / 2, -h / 2, w, h, 16);
+    if (this.highContrast) {
+      bg.lineStyle(2, 0xffffff, 1);
+      bg.strokeRoundedRect(-w / 2, -h / 2, w, h, 16);
+    }
 
-    // Sinete dourado central
-    g.lineStyle(1.5, 0xfacc15, 0.9);
-    g.strokeCircle(cx, cy, radius - 7);
-    g.fillStyle(0xfde047, 1);
-    g.fillCircle(cx, cy, 3);
+    const text = this.add.text(0, 0, label, {
+      fontFamily: FONT,
+      fontSize: '18px',
+      fontStyle: '800',
+      color: '#111827',
+      letterSpacing: 0.6
+    }).setOrigin(0.5);
+
+    container.add([bg, text]);
+    this.bindControl(container, w, h, onClick, {
+      enter: () => {
+        bg.clear();
+        bg.fillStyle(0xfbbf24, 1);
+        bg.fillRoundedRect(-w / 2, -h / 2, w, h, 16);
+      },
+      leave: () => {
+        bg.clear();
+        bg.fillStyle(0xf59e0b, 1);
+        bg.fillRoundedRect(-w / 2, -h / 2, w, h, 16);
+      }
+    });
+  }
+
+  private createModeCard(
+    x: number,
+    y: number,
+    icon: string,
+    label: string,
+    accent: number,
+    onClick: () => void
+  ): void {
+    const w = 112;
+    const h = 96;
+    const container = this.add.container(x, y);
+    const bg = this.add.graphics();
+    this.drawPanel(bg, -w / 2, -h / 2, w, h, 14);
+    bg.fillStyle(accent, 0.14);
+    bg.fillRoundedRect(-w / 2 + 6, -h / 2 + 6, w - 12, 36, 10);
+
+    const iconTxt = this.add.text(0, -18, icon, { fontSize: '20px' }).setOrigin(0.5);
+    const name = this.add.text(0, 22, label, {
+      fontFamily: FONT,
+      fontSize: '11px',
+      fontStyle: '700',
+      color: '#e4e4e7',
+      align: 'center',
+      wordWrap: { width: w - 16 }
+    }).setOrigin(0.5);
+
+    container.add([bg, iconTxt, name]);
+    this.bindControl(container, w, h, onClick, {
+      enter: () => container.setAlpha(1),
+      leave: () => container.setAlpha(0.92)
+    });
+    container.setAlpha(0.92);
+  }
+
+  private createIconTile(x: number, y: number, icon: string, label: string, onClick: () => void): void {
+    const w = 84;
+    const h = 72;
+    const container = this.add.container(x, y);
+    const bg = this.add.graphics();
+    this.drawPanel(bg, -w / 2, -h / 2, w, h, 14);
+
+    const iconTxt = this.add.text(0, -12, icon, { fontSize: '18px', color: '#fafafa' }).setOrigin(0.5);
+    const name = this.add.text(0, 18, label, {
+      fontFamily: FONT,
+      fontSize: '9px',
+      fontStyle: '600',
+      color: '#a1a1aa',
+      align: 'center',
+      wordWrap: { width: w - 8 }
+    }).setOrigin(0.5);
+
+    container.add([bg, iconTxt, name]);
+    this.bindControl(container, w, h, onClick, {
+      enter: () => container.setAlpha(1),
+      leave: () => container.setAlpha(0.92)
+    });
+    container.setAlpha(0.92);
+  }
+
+  /**
+   * Interactive area matches the visual (origin 0.5 + Phaser displayOrigin).
+   * Hover never scales the hit target; click fires on pointerup while still over.
+   */
+  private bindControl(
+    target: Phaser.GameObjects.Container,
+    w: number,
+    h: number,
+    onClick: () => void,
+    hover?: { enter: () => void; leave: () => void }
+  ): void {
+    const hitW = Math.max(w, MIN_TOUCH);
+    const hitH = Math.max(h, MIN_TOUCH);
+    target.setSize(hitW, hitH);
+    target.setInteractive(
+      new Phaser.Geom.Rectangle(0, 0, hitW, hitH),
+      Phaser.Geom.Rectangle.Contains
+    );
+    if (target.input) {
+      target.input.cursor = 'pointer';
+    }
+
+    let over = false;
+    target.on('pointerover', () => {
+      over = true;
+      hover?.enter();
+    });
+    target.on('pointerout', () => {
+      over = false;
+      hover?.leave();
+    });
+    target.on('pointerup', () => {
+      if (!over) return;
+      hover?.enter();
+      AudioManager.getInstance().playClick();
+      onClick();
+    });
+  }
+
+  private drawPanel(g: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, r: number): void {
+    g.fillStyle(this.panelFill(), 0.92);
+    g.fillRoundedRect(x, y, w, h, r);
+    g.lineStyle(this.highContrast ? 2 : 1, this.uiStroke(), this.highContrast ? 1 : 0.85);
+    g.strokeRoundedRect(x, y, w, h, r);
+  }
+
+  private drawPill(g: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, fill: number, stroke: number): void {
+    g.fillStyle(fill, 0.94);
+    g.fillRoundedRect(x, y, w, h, h / 2);
+    g.lineStyle(1, stroke, 0.9);
+    g.strokeRoundedRect(x, y, w, h, h / 2);
   }
 
   // ==========================================
-  // MODAL: DESAFIO DIÁRIO (DECRETO REAL)
+  // MODAL SHELL
+  // ==========================================
+  private openModal(
+    panelW: number,
+    panelH: number,
+    title: string,
+    build: (modal: Phaser.GameObjects.Container) => void
+  ): void {
+    this.closeActiveModal();
+
+    const { width, height } = this.scale;
+    const root = this.add.container(0, 0);
+    root.setDepth(2000);
+
+    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.62);
+    overlay.setInteractive();
+    overlay.on('pointerdown', () => this.closeActiveModal());
+
+    const panel = this.add.container(width / 2, height / 2);
+    const panelBg = this.add.graphics();
+    this.drawPanel(panelBg, -panelW / 2, -panelH / 2, panelW, panelH, 20);
+    const catchClicks = this.add.rectangle(0, 0, panelW, panelH, 0x000000, 0.001);
+    catchClicks.setInteractive();
+
+    const heading = this.add.text(-panelW / 2 + 28, -panelH / 2 + 28, title, {
+      fontFamily: FONT,
+      fontSize: '20px',
+      fontStyle: '800',
+      color: '#fafafa'
+    }).setOrigin(0, 0.5);
+
+    const closeBtn = this.add.container(panelW / 2 - 28, -panelH / 2 + 28);
+    const closeBg = this.add.graphics();
+    closeBg.fillStyle(0x27272a, 1);
+    closeBg.fillRoundedRect(-20, -20, 40, 40, 12);
+    closeBg.lineStyle(1, this.uiStroke(), 1);
+    closeBg.strokeRoundedRect(-20, -20, 40, 40, 12);
+    const closeTxt = this.add.text(0, 0, '✕', {
+      fontFamily: FONT,
+      fontSize: '16px',
+      color: '#e4e4e7'
+    }).setOrigin(0.5);
+    closeBtn.add([closeBg, closeTxt]);
+    this.bindControl(closeBtn, 40, 40, () => this.closeActiveModal());
+
+    panel.add([panelBg, catchClicks, heading, closeBtn]);
+    root.add([overlay, panel]);
+    build(panel);
+
+    const close = () => {
+      this.input.setDefaultCursor('default');
+      root.destroy();
+    };
+    this.activeModal = { root, close };
+  }
+
+  // ==========================================
+  // DAILY
   // ==========================================
   private showDailyChallengeModal(): void {
-    if (this.dailyModal) this.dailyModal.destroy();
-
-    const { width, height } = this.scale;
     const daily = getDailyChallenge();
-    const save = SaveManager.getInstance();
-    const isCompleted = save.isDailyChallengeCompleted(daily.dateStr);
+    const isCompleted = SaveManager.getInstance().isDailyChallengeCompleted(daily.dateStr);
 
-    const modal = this.add.container(width / 2, height / 2);
-    modal.setDepth(999);
-
-    const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.82);
-    overlay.setInteractive();
-
-    // Caixa de Pergaminho Real Antigo
-    const box = this.add.graphics();
-    box.fillStyle(0x1a120b, 0.98);
-    box.fillRoundedRect(-245, -185, 490, 370, 16);
-    // Borda de Ouro Nobre e Filigrana
-    box.lineStyle(3, 0xd97706, 1);
-    box.strokeRoundedRect(-245, -185, 490, 370, 16);
-    box.lineStyle(1.5, 0xfacc15, 0.8);
-    box.strokeRoundedRect(-239, -179, 478, 358, 12);
-
-    // Selo de Cera no Topo Esquerdo
-    this.drawWaxSeal(box, -210, -150, 18);
-
-    const title = this.add.text(10, -145, `📜 ${t('dailyChallengeTitle')}`, {
-      fontSize: '22px',
-      fontStyle: 'bold',
-      color: '#fde047',
-      stroke: '#451a03',
-      strokeThickness: 3
-    }).setOrigin(0.5);
-
-    const dateTxt = this.add.text(0, -114, `${daily.dateStr} • Recompensa Real: +${daily.rewardStars} ⭐`, {
-      fontSize: '13px',
-      fontStyle: 'bold',
-      color: '#facc15'
-    }).setOrigin(0.5);
-
-    const desc = this.add.text(0, -86, t('dailyChallengeDesc'), {
-      fontSize: '12px',
-      color: '#d6d3d1',
-      align: 'center',
-      wordWrap: { width: 440 }
-    }).setOrigin(0.5);
-
-    const items: Phaser.GameObjects.GameObject[] = [overlay, box, title, dateTxt, desc];
-
-    // Modificadores Ativos
-    daily.modifiers.forEach((mod, idx) => {
-      const info = MODIFIER_INFO[mod];
-      const rowY = -42 + idx * 56;
-
-      const mBg = this.add.graphics();
-      mBg.fillStyle(0x29180e, 0.95);
-      mBg.fillRoundedRect(-200, rowY, 400, 46, 8);
-      mBg.lineStyle(1.5, Phaser.Display.Color.HexStringToColor(info.colorHex).color, 0.85);
-      mBg.strokeRoundedRect(-200, rowY, 400, 46, 8);
-
-      const icon = this.add.text(-175, rowY + 23, info.icon, { fontSize: '20px' }).setOrigin(0.5);
-      const name = this.add.text(-150, rowY + 14, t(info.nameKey as any), {
+    this.openModal(520, 420, t('dailyChallengeTitle'), (panel) => {
+      panel.add(this.add.text(0, -148, `${daily.dateStr}  ·  +${daily.rewardStars} ★`, {
+        fontFamily: FONT,
         fontSize: '13px',
-        fontStyle: 'bold',
-        color: info.colorHex
-      }).setOrigin(0, 0.5);
+        color: '#fbbf24'
+      }).setOrigin(0.5));
 
-      const dTxt = this.add.text(-150, rowY + 32, t(info.descKey as any), {
-        fontSize: '10.5px',
-        color: '#d6d3d1'
-      }).setOrigin(0, 0.5);
+      panel.add(this.add.text(0, -118, t('dailyChallengeDesc'), {
+        fontFamily: FONT,
+        fontSize: '13px',
+        color: '#a1a1aa',
+        align: 'center',
+        wordWrap: { width: 440 }
+      }).setOrigin(0.5));
 
-      items.push(mBg, icon, name, dTxt);
+      daily.modifiers.forEach((mod, idx) => {
+        const info = MODIFIER_INFO[mod];
+        const y = -48 + idx * 78;
+        const card = this.add.graphics();
+        this.drawPanel(card, -210, y, 420, 68, 14);
+        const accent = Phaser.Display.Color.HexStringToColor(info.colorHex).color;
+        card.fillStyle(accent, 0.16);
+        card.fillRoundedRect(-210, y, 8, 68, 4);
+
+        panel.add(card);
+        panel.add(this.add.text(-184, y + 22, info.icon, { fontSize: '20px' }).setOrigin(0.5));
+        panel.add(this.add.text(-158, y + 18, t(info.nameKey as 'modDoubleCostName'), {
+          fontFamily: FONT,
+          fontSize: '14px',
+          fontStyle: '700',
+          color: info.colorHex
+        }).setOrigin(0, 0.5));
+        panel.add(this.add.text(-158, y + 42, t(info.descKey as 'modDoubleCostDesc'), {
+          fontFamily: FONT,
+          fontSize: '12px',
+          color: '#a1a1aa',
+          wordWrap: { width: 340 }
+        }).setOrigin(0, 0.5));
+      });
+
+      const cta = this.add.container(0, 162);
+      const ctaBg = this.add.graphics();
+      ctaBg.fillStyle(isCompleted ? 0x3f3f46 : 0xf59e0b, 1);
+      ctaBg.fillRoundedRect(-140, -24, 280, 48, 14);
+      const ctaTxt = this.add.text(0, 0, isCompleted ? t('dailyCompleted') : t('play'), {
+        fontFamily: FONT,
+        fontSize: '15px',
+        fontStyle: '800',
+        color: isCompleted ? '#fafafa' : '#111827'
+      }).setOrigin(0.5);
+      cta.add([ctaBg, ctaTxt]);
+      this.bindControl(cta, 280, 48, () => {
+        this.closeActiveModal();
+        this.navigate('GameScene', {
+          isDailyChallenge: true,
+          dailyDate: daily.dateStr,
+          modifiers: daily.modifiers
+        });
+      });
+      panel.add(cta);
     });
-
-    // Botão Iniciar Batalha (Hitbox 210x48px)
-    const playBtn = this.add.container(0, 118);
-    const pBg = this.add.graphics();
-    pBg.fillStyle(isCompleted ? 0x064e3b : 0x047857, 1);
-    pBg.fillRoundedRect(-105, -22, 210, 44, 8);
-    pBg.lineStyle(2, 0x6ee7b7, 1);
-    pBg.strokeRoundedRect(-105, -22, 210, 44, 8);
-
-    const pTxt = this.add.text(0, 0, isCompleted ? `✓ ${t('dailyCompleted')}` : `⚔️ ${t('play')}`, {
-      fontSize: '15px',
-      fontStyle: 'bold',
-      color: '#ffffff',
-      stroke: '#064e3b',
-      strokeThickness: 2
-    }).setOrigin(0.5);
-
-    playBtn.add([pBg, pTxt]);
-    playBtn.setSize(210, 48);
-    playBtn.setInteractive(SafeArea.createTouchHitbox(210, 48), Phaser.Geom.Rectangle.Contains);
-    attachSpringFeedback(playBtn, this, {
-      rippleColor: 0x34d399,
-      onClick: () => {
-        modal.destroy();
-        this.dailyModal = null;
-        this.scene.start('GameScene', { isDailyChallenge: true, dailyDate: daily.dateStr, modifiers: daily.modifiers });
-      }
-    });
-
-    // Fechar (Selo Vermelho de Fechar 48x48px)
-    const closeBtn = this.add.container(218, -158);
-    const closeG = this.add.graphics();
-    this.drawWaxSeal(closeG, 0, 0, 16);
-    const closeTxt = this.add.text(0, 0, '✕', { fontSize: '15px', fontStyle: 'bold', color: '#fef08a' }).setOrigin(0.5);
-    closeBtn.add([closeG, closeTxt]);
-    closeBtn.setSize(48, 48);
-    closeBtn.setInteractive(SafeArea.createTouchHitbox(48, 48), Phaser.Geom.Rectangle.Contains);
-    attachSpringFeedback(closeBtn, this, {
-      rippleColor: 0xef4444,
-      onClick: () => {
-        modal.destroy();
-        this.dailyModal = null;
-      }
-    });
-
-    items.push(playBtn, closeBtn);
-    modal.add(items);
-    this.dailyModal = modal;
   }
 
   // ==========================================
-  // MODAL: DECRETOS REAIS (CONFIGURAÇÕES)
+  // SETTINGS
   // ==========================================
   private showSettingsModal(): void {
-    if (this.settingsModal) this.settingsModal.destroy();
-
-    const { width, height } = this.scale;
     const save = SaveManager.getInstance();
     const data = save.getData();
 
-    const modal = this.add.container(width / 2, height / 2);
-    modal.setDepth(999);
+    this.openModal(480, 430, t('settings'), (panel) => {
+      const rows: Array<{ label: string; on: boolean; toggle: () => void }> = [
+        {
+          label: `${t('language')}: ${getLanguage().toUpperCase()}`,
+          on: getLanguage() === 'en',
+          toggle: () => {
+            const nextLang = getLanguage() === 'pt' ? 'en' : 'pt';
+            setLanguage(nextLang);
+            data.settings.language = nextLang;
+            save.save();
+            this.closeActiveModal();
+            this.scene.restart();
+          }
+        },
+        {
+          label: t('sound'),
+          on: data.settings.sfxEnabled,
+          toggle: () => {
+            data.settings.sfxEnabled = !data.settings.sfxEnabled;
+            save.save();
+            AudioManager.getInstance().updateVolumes();
+            this.showSettingsModal();
+          }
+        },
+        {
+          label: t('music'),
+          on: data.settings.musicEnabled,
+          toggle: () => {
+            data.settings.musicEnabled = !data.settings.musicEnabled;
+            save.save();
+            AudioManager.getInstance().updateVolumes();
+            this.showSettingsModal();
+          }
+        },
+        {
+          label: t('highContrast'),
+          on: save.isHighContrast(),
+          toggle: () => {
+            save.setHighContrast(!save.isHighContrast());
+            this.closeActiveModal();
+            this.scene.restart();
+          }
+        },
+        {
+          label: t('haptics'),
+          on: data.settings.hapticsEnabled,
+          toggle: () => {
+            data.settings.hapticsEnabled = !data.settings.hapticsEnabled;
+            save.save();
+            this.showSettingsModal();
+          }
+        }
+      ];
 
-    const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.82);
-    overlay.setInteractive();
-
-    const box = this.add.graphics();
-    box.fillStyle(0x1a120b, 0.98);
-    box.fillRoundedRect(-245, -205, 490, 410, 16);
-    box.lineStyle(3, 0xd97706, 1);
-    box.strokeRoundedRect(-245, -205, 490, 410, 16);
-    box.lineStyle(1.5, 0xfacc15, 0.8);
-    box.strokeRoundedRect(-239, -199, 478, 398, 12);
-
-    this.drawWaxSeal(box, -210, -170, 18);
-
-    const title = this.add.text(10, -168, `⚙️ ${t('settings')}`, {
-      fontSize: '23px',
-      fontStyle: 'bold',
-      color: '#fde047',
-      stroke: '#451a03',
-      strokeThickness: 3
-    }).setOrigin(0.5);
-
-    const items: Phaser.GameObjects.GameObject[] = [overlay, box, title];
-
-    // 1. Idioma Real
-    const langBtn = this.createParchmentToggle(0, -118, `🌐 ${t('language')}: ${getLanguage().toUpperCase()}`, () => {
-      const nextLang = getLanguage() === 'pt' ? 'en' : 'pt';
-      setLanguage(nextLang);
-      data.settings.language = nextLang;
-      save.save();
-      this.scene.restart();
+      rows.forEach((row, i) => {
+        panel.add(this.createSwitchRow(0, -130 + i * 58, row.label, row.on, row.toggle));
+      });
     });
+  }
 
-    // 2. Efeitos Sonoros
-    const sfxBtn = this.createParchmentToggle(0, -62, `🔊 ${t('sound')}: ${data.settings.sfxEnabled ? 'ON' : 'OFF'}`, () => {
-      data.settings.sfxEnabled = !data.settings.sfxEnabled;
-      save.save();
-      AudioManager.getInstance().updateVolumes();
-      this.showSettingsModal();
-    });
+  private createSwitchRow(x: number, y: number, label: string, on: boolean, onToggle: () => void): Phaser.GameObjects.Container {
+    const row = this.add.container(x, y);
+    const bg = this.add.graphics();
+    this.drawPanel(bg, -200, -24, 400, 48, 14);
 
-    // 3. Alto Contraste Real
-    const isHC = save.isHighContrast();
-    const hcBtn = this.createParchmentToggle(0, -6, `👁️ ${t('highContrast')}: ${isHC ? t('highContrastOn') : t('highContrastOff')}`, () => {
-      save.setHighContrast(!isHC);
-      this.showSettingsModal();
-    });
+    const text = this.add.text(-176, 0, label, {
+      fontFamily: FONT,
+      fontSize: '14px',
+      fontStyle: '600',
+      color: '#e4e4e7'
+    }).setOrigin(0, 0.5);
 
-    // 4. Vibração Tátil
-    const hapBtn = this.createParchmentToggle(0, 50, `📳 ${t('haptics')}: ${data.settings.hapticsEnabled ? 'ON' : 'OFF'}`, () => {
-      data.settings.hapticsEnabled = !data.settings.hapticsEnabled;
-      save.save();
-      this.showSettingsModal();
-    });
+    const track = this.add.graphics();
+    const tx = 148;
+    track.fillStyle(on ? 0xf59e0b : 0x3f3f46, 1);
+    track.fillRoundedRect(tx, -12, 44, 24, 12);
+    const thumb = this.add.circle(on ? tx + 32 : tx + 12, 0, 9, 0xffffff);
 
-    // 5. Botão Voltar (Hitbox 160x48px)
-    const closeBtn = this.add.container(0, 134);
-    const closeBg = this.add.graphics();
-    closeBg.fillStyle(0x7f1d1d, 0.95);
-    closeBg.fillRoundedRect(-80, -22, 160, 44, 8);
-    closeBg.lineStyle(2, 0xfca5a5, 1);
-    closeBg.strokeRoundedRect(-80, -22, 160, 44, 8);
-    const closeTxt = this.add.text(0, 0, t('back'), { fontSize: '15px', fontStyle: 'bold', color: '#ffffff' }).setOrigin(0.5);
-    closeBtn.add([closeBg, closeTxt]);
-    closeBtn.setSize(160, 48);
-    closeBtn.setInteractive(SafeArea.createTouchHitbox(160, 48), Phaser.Geom.Rectangle.Contains);
-    attachSpringFeedback(closeBtn, this, {
-      rippleColor: 0xef4444,
-      onClick: () => {
-        modal.destroy();
-        this.settingsModal = null;
-      }
-    });
-
-    items.push(langBtn, sfxBtn, hcBtn, hapBtn, closeBtn);
-    modal.add(items);
-    this.settingsModal = modal;
+    row.add([bg, text, track, thumb]);
+    this.bindControl(row, 400, 48, onToggle);
+    return row;
   }
 
   // ==========================================
-  // MODAL: TÍTULOS DE HONRA (CONQUISTAS)
+  // ACHIEVEMENTS
   // ==========================================
   private showAchievementsModal(): void {
-    if (this.achievementsModal) this.achievementsModal.destroy();
-
-    const { width, height } = this.scale;
     const save = SaveManager.getInstance().getData();
+    const unlocked = ACHIEVEMENTS_LIST.filter(a => save.achievements.includes(a.id)).length;
+    const { width, height } = this.scale;
+    const panelW = 640;
+    const panelH = 500;
+    const listW = 580;
+    const listH = 360;
+    const rowH = 62;
+    const listWorldX = width / 2 - listW / 2;
+    const listWorldY = height / 2 - 96;
 
-    const modal = this.add.container(width / 2, height / 2);
-    modal.setDepth(999);
-
-    const overlay = this.add.rectangle(0, 0, width, height, 0x000000, 0.82);
-    overlay.setInteractive();
-
-    const box = this.add.graphics();
-    box.fillStyle(0x1a120b, 0.98);
-    box.fillRoundedRect(-305, -225, 610, 450, 16);
-    box.lineStyle(3, 0xd97706, 1);
-    box.strokeRoundedRect(-305, -225, 610, 450, 16);
-    box.lineStyle(1.5, 0xfacc15, 0.8);
-    box.strokeRoundedRect(-299, -219, 598, 438, 12);
-
-    this.drawWaxSeal(box, -265, -185, 20);
-
-    const title = this.add.text(10, -182, `🏆 ${t('achievements')}`, {
-      fontSize: '24px',
-      fontStyle: 'bold',
-      color: '#facc15',
-      stroke: '#451a03',
-      strokeThickness: 3
-    }).setOrigin(0.5);
-
-    const items: Phaser.GameObjects.GameObject[] = [overlay, box, title];
-
-    const sampleAchievements = [
-      { id: 'first_kill', name: 'Primeiro Sangue Real', desc: 'Elimine o seu primeiro invasor das trevas.', icon: '🎯' },
-      { id: 'perfect_defense', name: 'Defesa Inabalável', desc: 'Vença uma batalha sem perder nenhuma vida do reino.', icon: '🛡️' },
-      { id: 'max_tower', name: 'Mestria Arcana', desc: 'Evolua uma torre defensiva até o Grau 3 ou Superior.', icon: '⭐' },
-      { id: 'daily_master', name: 'Estrategista Real', desc: 'Cumpra um Decreto Diário com glória.', icon: '📜' },
-      { id: 'boss_rush_champion', name: 'Caçador de Titãs', desc: 'Sobreviva a ondas na Arena dos Chefes Colossais.', icon: '👑' }
-    ];
-
-    sampleAchievements.forEach((ach, index) => {
-      const isUnlocked = save.achievements.includes(ach.id);
-      const rowY = -132 + index * 57;
-
-      const rowBg = this.add.graphics();
-      rowBg.fillStyle(isUnlocked ? 0x2d180a : 0x160f08, 0.95);
-      rowBg.fillRoundedRect(-265, rowY, 530, 48, 8);
-      rowBg.lineStyle(1.5, isUnlocked ? 0xfacc15 : 0x44403c, 0.8);
-      rowBg.strokeRoundedRect(-265, rowY, 530, 48, 8);
-
-      const iconTxt = this.add.text(-235, rowY + 24, ach.icon, { fontSize: '22px' }).setOrigin(0.5);
-      const nameTxt = this.add.text(-205, rowY + 14, ach.name, {
-        fontSize: '14px',
-        fontStyle: 'bold',
-        color: isUnlocked ? '#facc15' : '#a8a29e'
-      }).setOrigin(0, 0.5);
-      const descTxt = this.add.text(-205, rowY + 32, ach.desc, {
-        fontSize: '11px',
-        color: '#d6d3d1'
-      }).setOrigin(0, 0.5);
-
-      const statusTxt = this.add.text(235, rowY + 24, isUnlocked ? '✓ HONRA' : '🔒', {
+    this.openModal(panelW, panelH, t('achievements'), (panel) => {
+      panel.add(this.add.text(panelW / 2 - 88, -panelH / 2 + 28, t('honorsProgress', {
+        unlocked,
+        total: ACHIEVEMENTS_LIST.length
+      }), {
+        fontFamily: FONT,
         fontSize: '13px',
-        fontStyle: 'bold',
-        color: isUnlocked ? '#22c55e' : '#78716c'
-      }).setOrigin(0.5);
+        color: '#a1a1aa'
+      }).setOrigin(1, 0.5));
 
-      items.push(rowBg, iconTxt, nameTxt, descTxt, statusTxt);
-    });
+      const list = this.add.container(0, -72);
+      ACHIEVEMENTS_LIST.forEach((ach, index) => {
+        const isOn = save.achievements.includes(ach.id);
+        const y = index * rowH;
+        const row = this.add.graphics();
+        row.fillStyle(isOn ? 0x1c1917 : 0x18181b, 0.95);
+        row.fillRoundedRect(-listW / 2, y, listW, rowH - 8, 12);
+        row.lineStyle(1, isOn ? 0xf59e0b : 0x27272a, 0.9);
+        row.strokeRoundedRect(-listW / 2, y, listW, rowH - 8, 12);
 
-    const closeBtn = this.add.container(0, 180);
-    const closeBg = this.add.graphics();
-    closeBg.fillStyle(0x7f1d1d, 0.92);
-    closeBg.fillRoundedRect(-80, -22, 160, 44, 8);
-    closeBg.lineStyle(2, 0xfca5a5, 1);
-    closeBg.strokeRoundedRect(-80, -22, 160, 44, 8);
-    const closeTxt = this.add.text(0, 0, t('back'), { fontSize: '15px', fontStyle: 'bold', color: '#ffffff' }).setOrigin(0.5);
-    closeBtn.add([closeBg, closeTxt]);
-    closeBtn.setSize(160, 48);
-    closeBtn.setInteractive(SafeArea.createTouchHitbox(160, 48), Phaser.Geom.Rectangle.Contains);
-    attachSpringFeedback(closeBtn, this, {
-      rippleColor: 0xef4444,
-      onClick: () => {
-        modal.destroy();
-        this.achievementsModal = null;
+        const icon = this.add.text(-listW / 2 + 28, y + 27, ach.icon, { fontSize: '20px' }).setOrigin(0.5);
+        const name = this.add.text(-listW / 2 + 52, y + 16, ach.name, {
+          fontFamily: FONT,
+          fontSize: '14px',
+          fontStyle: '700',
+          color: isOn ? '#fafafa' : '#71717a'
+        }).setOrigin(0, 0.5);
+        const desc = this.add.text(-listW / 2 + 52, y + 36, ach.description, {
+          fontFamily: FONT,
+          fontSize: '11px',
+          color: '#a1a1aa',
+          wordWrap: { width: 430 }
+        }).setOrigin(0, 0.5);
+        const status = this.add.text(listW / 2 - 20, y + 27, isOn ? '✓' : '', {
+          fontFamily: FONT,
+          fontSize: '16px',
+          color: '#34d399'
+        }).setOrigin(0.5);
+
+        list.add([row, icon, name, desc, status]);
+      });
+      panel.add(list);
+
+      const maskG = this.add.graphics();
+      maskG.fillStyle(0xffffff, 1);
+      maskG.fillRect(listWorldX, listWorldY, listW, listH);
+      maskG.setVisible(false);
+      list.setMask(maskG.createGeometryMask());
+
+      const contentH = ACHIEVEMENTS_LIST.length * rowH;
+      const maxScroll = Math.max(0, contentH - listH);
+      let scroll = 0;
+      const applyScroll = (next: number) => {
+        scroll = Phaser.Math.Clamp(next, -maxScroll, 0);
+        list.y = -72 + scroll;
+      };
+
+      const hit = this.add.rectangle(0, 84, listW, listH, 0x000000, 0.001);
+      hit.setInteractive();
+      panel.add(hit);
+
+      const onWheel = (_p: Phaser.Input.Pointer, _dx: number, dy: number) => {
+        if (this.activeModal) applyScroll(scroll - dy * 0.4);
+      };
+      this.input.on('wheel', onWheel);
+
+      let dragY = 0;
+      hit.on('pointerdown', (p: Phaser.Input.Pointer) => {
+        dragY = p.y;
+      });
+      hit.on('pointermove', (p: Phaser.Input.Pointer) => {
+        if (!p.isDown) return;
+        applyScroll(scroll + (p.y - dragY));
+        dragY = p.y;
+      });
+
+      const prevClose = this.activeModal?.close;
+      if (this.activeModal) {
+        this.activeModal.close = () => {
+          this.input.off('wheel', onWheel);
+          prevClose?.();
+        };
       }
     });
-
-    items.push(closeBtn);
-    modal.add(items);
-    this.achievementsModal = modal;
-  }
-
-  // ==========================================
-  // COMPONENTE: TOGGLE EM PERGAMINHO
-  // ==========================================
-  private createParchmentToggle(x: number, y: number, text: string, onClick: () => void): Phaser.GameObjects.Container {
-    const container = this.add.container(x, y);
-    const bg = this.add.graphics();
-    bg.fillStyle(0x29180e, 1);
-    bg.fillRoundedRect(-165, -22, 330, 44, 8);
-    bg.lineStyle(1.5, 0xd97706, 0.8);
-    bg.strokeRoundedRect(-165, -22, 330, 44, 8);
-
-    const label = this.add.text(0, 0, text, {
-      fontSize: '14px',
-      fontStyle: 'bold',
-      color: '#fef08a'
-    }).setOrigin(0.5);
-
-    container.add([bg, label]);
-    container.setSize(330, 48);
-    container.setInteractive(SafeArea.createTouchHitbox(330, 48), Phaser.Geom.Rectangle.Contains);
-    attachSpringFeedback(container, this, {
-      rippleColor: 0xfacc15,
-      onClick
-    });
-
-    return container;
   }
 }
