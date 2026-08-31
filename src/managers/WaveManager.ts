@@ -48,32 +48,31 @@ export class WaveManager {
   }
 
   public startNextWave(isEarlyCall = false): boolean {
-    if (this.isWaveInProgress) return false;
-
-    this.currentWaveIndex++;
-
-    if (!this.isEndless && this.currentWaveIndex >= this.waves.length) {
+    const nextIndex = this.currentWaveIndex + 1;
+    if (!this.isEndless && nextIndex >= this.waves.length) {
       return false;
     }
 
-    if (isEarlyCall) {
+    const callingEarly = this.isWaveInProgress || isEarlyCall;
+    this.currentWaveIndex = nextIndex;
+
+    if (callingEarly) {
       this.economyManager.addGold(GAME_CONSTANTS.EARLY_WAVE_GOLD_BONUS);
     }
 
     this.isWaveInProgress = true;
-    this.buildSpawnQueue();
+    this.appendSpawnQueue();
 
     EventBus.emit(GameEvents.WAVE_STARTED, {
       waveNumber: this.getCurrentWaveNumber(),
       totalWaves: this.getTotalWaves(),
-      isEarlyCall
+      isEarlyCall: callingEarly
     });
 
     return true;
   }
 
-  private buildSpawnQueue(): void {
-    this.spawnQueue = [];
+  private appendSpawnQueue(): void {
     let currentWave: WaveData;
 
     if (this.isBossRush && this.currentWaveIndex >= this.waves.length) {

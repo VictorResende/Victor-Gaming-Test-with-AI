@@ -1,4 +1,5 @@
 import { Preferences } from '@capacitor/preferences';
+import { LEVELS_CONFIG } from '../config/levelsConfig';
 
 export interface GameSaveData {
   unlockedLevels: number[];
@@ -28,6 +29,7 @@ export interface GameSaveData {
   endlessBestWave: number;
   endlessHighScore: number;
   endlessMilestonesClaimed: number[];
+  lifetimeKills: number;
 }
 
 const DEFAULT_SAVE: GameSaveData = {
@@ -56,15 +58,17 @@ const DEFAULT_SAVE: GameSaveData = {
   bossRushHighScore: 0,
   endlessBestWave: 0,
   endlessHighScore: 0,
-  endlessMilestonesClaimed: []
+  endlessMilestonesClaimed: [],
+  lifetimeKills: 0
 };
 
 const STORAGE_KEY = 'tower_defense_save_v1';
 
 export class SaveManager {
   private static instance: SaveManager;
-  private data: GameSaveData = { ...DEFAULT_SAVE };
+  private data: GameSaveData = { ...DEFAULT_SAVE, settings: { ...DEFAULT_SAVE.settings } };
   private isLoaded = false;
+  private persistQueue: Promise<void> = Promise.resolve();
 
   public static getInstance(): SaveManager {
     if (!SaveManager.instance) {
@@ -77,43 +81,53 @@ export class SaveManager {
     try {
       const { value } = await Preferences.get({ key: STORAGE_KEY });
       if (value) {
-        this.data = { ...DEFAULT_SAVE, ...JSON.parse(value) };
-        if (!this.data.unlockedHeroPerks) this.data.unlockedHeroPerks = [];
-        if (!this.data.unlockedRelics) this.data.unlockedRelics = [...DEFAULT_SAVE.unlockedRelics];
-        if (!this.data.equippedRelics) this.data.equippedRelics = [...DEFAULT_SAVE.equippedRelics];
-        if (this.data.endlessBestWave === undefined) this.data.endlessBestWave = 0;
-        if (this.data.endlessHighScore === undefined) this.data.endlessHighScore = 0;
-        if (!this.data.endlessMilestonesClaimed) this.data.endlessMilestonesClaimed = [];
+        this.applyLoaded(JSON.parse(value));
       } else {
         const local = localStorage.getItem(STORAGE_KEY);
         if (local) {
-          this.data = { ...DEFAULT_SAVE, ...JSON.parse(local) };
-          if (!this.data.unlockedHeroPerks) this.data.unlockedHeroPerks = [];
-          if (!this.data.unlockedRelics) this.data.unlockedRelics = [...DEFAULT_SAVE.unlockedRelics];
-          if (!this.data.equippedRelics) this.data.equippedRelics = [...DEFAULT_SAVE.equippedRelics];
-          if (this.data.endlessBestWave === undefined) this.data.endlessBestWave = 0;
-          if (this.data.endlessHighScore === undefined) this.data.endlessHighScore = 0;
-          if (!this.data.endlessMilestonesClaimed) this.data.endlessMilestonesClaimed = [];
+          this.applyLoaded(JSON.parse(local));
         }
       }
     } catch (e) {
       console.warn('Erro ao carregar save, usando fallback local:', e);
       const local = localStorage.getItem(STORAGE_KEY);
       if (local) {
-        this.data = { ...DEFAULT_SAVE, ...JSON.parse(local) };
-        if (!this.data.unlockedHeroPerks) this.data.unlockedHeroPerks = [];
-        if (!this.data.unlockedRelics) this.data.unlockedRelics = [...DEFAULT_SAVE.unlockedRelics];
-        if (!this.data.equippedRelics) this.data.equippedRelics = [...DEFAULT_SAVE.equippedRelics];
-        if (this.data.endlessBestWave === undefined) this.data.endlessBestWave = 0;
-        if (this.data.endlessHighScore === undefined) this.data.endlessHighScore = 0;
-        if (!this.data.endlessMilestonesClaimed) this.data.endlessMilestonesClaimed = [];
+        try {
+          this.applyLoaded(JSON.parse(local));
+        } catch {
+          this.data = { ...DEFAULT_SAVE, settings: { ...DEFAULT_SAVE.settings } };
+        }
       }
     }
     this.isLoaded = true;
     return this.data;
   }
 
-  public async save(): Promise<void> {
+  private applyLoaded(parsed: Partial<GameSaveData>): void {
+    this.data = {
+      ...DEFAULT_SAVE,
+      ...parsed,
+      settings: { ...DEFAULT_SAVE.settings, ...(parsed.settings || {}) },
+      unlockedHeroPerks: parsed.unlockedHeroPerks || [],
+      unlockedRelics: parsed.unlockedRelics || [...DEFAULT_SAVE.unlockedRelics],
+      equippedRelics: parsed.equippedRelics || [...DEFAULT_SAVE.equippedRelics],
+      endlessBestWave: parsed.endlessBestWave ?? 0,
+      endlessHighScore: parsed.endlessHighScore ?? 0,
+      endlessMilestonesClaimed: parsed.endlessMilestonesClaimed || [],
+      lifetimeKills: parsed.lifetimeKills ?? 0
+    };
+  }
+
+  public save(): Promise<void> {
+    this.persistQueue = this.persistQueue.then(() => this.persistNow()).catch(() => this.persistNow());
+    return this.persistQueue;
+  }
+
+  public flush(): Promise<void> {
+    return this.persistQueue;
+  }
+
+  private async persistNow(): Promise<void> {
     try {
       const json = JSON.stringify(this.data);
       await Preferences.set({ key: STORAGE_KEY, value: json });
@@ -143,11 +157,19 @@ export class SaveManager {
     }
 
     const nextLevel = levelId + 1;
-    if (!this.data.unlockedLevels.includes(nextLevel)) {
+    if (LEVELS_CONFIG.some(l => l.id === nextLevel) && !this.data.unlockedLevels.includes(nextLevel)) {
       this.data.unlockedLevels.push(nextLevel);
     }
 
     this.save();
+  }
+
+  public recordKill(): number {
+    this.data.lifetimeKills = (this.data.lifetimeKills || 0) + 1;
+    if (this.data.lifetimeKills % 10 === 0) {
+      this.save();
+    }
+    return this.data.lifetimeKills;
   }
 
   public unlockTech(techId: string, cost: number): boolean {

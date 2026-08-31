@@ -17,7 +17,7 @@ import { SaveManager } from '../managers/SaveManager';
 import { AchievementsManager } from '../managers/AchievementsManager';
 import { AudioManager } from '../managers/AudioManager';
 import { HapticsManager } from '../managers/HapticsManager';
-import { EventBus, GameEvents } from '../core/EventBus';
+import { EventBus, GameEvents, BoundBus } from '../core/EventBus';
 import { KeyboardControls } from '../utils/KeyboardControls';
 
 export class GameScene extends Phaser.Scene {
@@ -40,6 +40,10 @@ export class GameScene extends Phaser.Scene {
   public enemies: Enemy[] = [];
   public shrines: ArcaneShrine[] = [];
   private projectilesPool!: ObjectPool<Projectile>;
+  private activeProjectiles: Projectile[] = [];
+  private bus = new BoundBus();
+  private sessionSpellCasts = 0;
+  private sessionEarlyCalls = 0;
   private buildSlotSprites: Phaser.GameObjects.Sprite[] = [];
   private occupiedSlots: Set<string> = new Set();
 
@@ -126,6 +130,9 @@ export class GameScene extends Phaser.Scene {
     this.enemies = [];
     this.shrines = [];
     this.activeFireTrails = [];
+    this.activeProjectiles = [];
+    this.sessionSpellCasts = 0;
+    this.sessionEarlyCalls = 0;
     this.occupiedSlots.clear();
     this.obstacleContainers.clear();
     this.obstacleDataMap.clear();
@@ -167,6 +174,10 @@ export class GameScene extends Phaser.Scene {
       p.isActive = false;
       p.setVisible(false);
     }, 60);
+    this.activeProjectiles = [];
+
+    this.events.off(Phaser.Scenes.Events.SHUTDOWN, this.onSceneShutdown, this);
+    this.events.on(Phaser.Scenes.Events.SHUTDOWN, this.onSceneShutdown, this);
 
     // 3. Renderiza Terreno, Estradas Sinuosas Orgânicas e Props Estilo Kingdom Rush
     this.renderTerrain();
@@ -509,24 +520,24 @@ export class GameScene extends Phaser.Scene {
 
       // Badge de Custo em Ouro
       const costBg = this.add.graphics();
-      costBg.fillStyle(0x18110b, 0.9);
-      costBg.fillRoundedRect(-28, 16, 56, 18, 4);
-      costBg.lineStyle(1, 0xfacc15, 0.8);
-      costBg.strokeRoundedRect(-28, 16, 56, 18, 4);
+      costBg.fillStyle(0x12141c, 0.94);
+      costBg.fillRoundedRect(-28, 16, 56, 18, 8);
+      costBg.lineStyle(1, 0x3f3f46, 0.9);
+      costBg.strokeRoundedRect(-28, 16, 56, 18, 8);
 
-      const costTxt = this.add.text(0, 25, `💰 ${obs.clearCost}`, {
+      const costTxt = this.add.text(0, 25, `${obs.clearCost}G`, {
+        fontFamily: 'system-ui, sans-serif',
         fontSize: '11px',
-        fontStyle: 'bold',
-        color: '#fde047'
+        fontStyle: '700',
+        color: '#fbbf24'
       }).setOrigin(0.5);
 
       container.add([sprite, costBg, costTxt]);
       container.setSize(56, 56);
-      container.setInteractive(new Phaser.Geom.Rectangle(-28, -28, 56, 56), Phaser.Geom.Rectangle.Contains);
+      container.setInteractive(new Phaser.Geom.Rectangle(0, 0, 56, 56), Phaser.Geom.Rectangle.Contains);
 
-      // Animação de pulsar suave
       this.tweens.add({
-        targets: container,
+        targets: sprite,
         scaleX: 1.04,
         scaleY: 1.04,
         yoyo: true,
@@ -656,8 +667,9 @@ export class GameScene extends Phaser.Scene {
 
   private showFloatingText(x: number, y: number, text: string, color = '#ffffff'): void {
     const txt = this.add.text(x, y, text, {
+      fontFamily: 'system-ui, sans-serif',
       fontSize: '13px',
-      fontStyle: 'bold',
+      fontStyle: '700',
       color,
       stroke: '#000000',
       strokeThickness: 3
@@ -1051,23 +1063,36 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  public acquireProjectile(): Projectile {
+    const projectile = this.projectilesPool.get();
+    if (!this.activeProjectiles.includes(projectile)) {
+      this.activeProjectiles.push(projectile);
+    }
+    return projectile;
+  }
+
+  private getProjectileSource(): { get: () => Projectile } {
+    return { get: () => this.acquireProjectile() };
+  }
+
   private setupEventListeners(): void {
-    EventBus.on(GameEvents.GAME_SPEED_CHANGED, (speed: GameSpeed) => {
+    this.bus.offAll();
+
+    this.bus.on(GameEvents.GAME_SPEED_CHANGED, (speed: GameSpeed) => {
       this.gameSpeed = speed;
     });
 
-    EventBus.on(GameEvents.ENEMY_SPAWNED, (newEnemy: Enemy) => {
+    this.bus.on(GameEvents.ENEMY_SPAWNED, (newEnemy: Enemy) => {
       if (newEnemy && !this.enemies.includes(newEnemy)) {
         this.enemies.push(newEnemy);
       }
     });
 
-    EventBus.on(GameEvents.ENEMY_KILLED, (data: { enemy: Enemy; gold: number; score: number }) => {
+    this.bus.on(GameEvents.ENEMY_KILLED, (data: { enemy: Enemy; gold: number; score: number }) => {
       this.economyManager.addGold(data.gold);
       this.economyManager.addScore(data.score);
       AudioManager.getInstance().playCoin();
 
-      // Distribui XP ao Herói
       if (this.hero && this.hero.isAlive) {
         let xp = 15;
         if (data.enemy.config.isBoss) xp = 300;
@@ -1078,7 +1103,10 @@ export class GameScene extends Phaser.Scene {
         this.hero.gainXp(xp);
       }
 
+      const kills = SaveManager.getInstance().recordKill();
       AchievementsManager.getInstance().checkAndUnlock('first_kill');
+      if (kills >= 50) AchievementsManager.getInstance().checkAndUnlock('kills_50');
+      if (kills >= 200) AchievementsManager.getInstance().checkAndUnlock('kills_200');
       if (data.enemy.config.isBoss || data.enemy.enemyType === EnemyType.BOSS) {
         AchievementsManager.getInstance().checkAndUnlock('boss_slayer');
         if (this.hero && this.hero.isAlive) {
@@ -1087,9 +1115,14 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
-    EventBus.on(GameEvents.WAVE_STARTED, (data: { waveNumber: number }) => {
+    this.bus.on(GameEvents.WAVE_STARTED, (data: { waveNumber: number; isEarlyCall?: boolean }) => {
       this.dragonAirstrikeTriggeredThisWave = false;
-      // Em ondas 5 e acima (ou Boss Rush), o Dragão Alado faz sua passagem épica
+      if (data.isEarlyCall) {
+        this.sessionEarlyCalls += 1;
+        if (this.sessionEarlyCalls >= 3) {
+          AchievementsManager.getInstance().checkAndUnlock('early_caller');
+        }
+      }
       if (data.waveNumber >= 5 || this.isBossRush) {
         this.time.delayedCall(4500, () => {
           if (this.scene.isActive()) {
@@ -1099,21 +1132,30 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
-    EventBus.on(GameEvents.ENEMY_REACHED_END, (data: { enemy: Enemy; livesLost: number }) => {
+    this.bus.on(GameEvents.ENEMY_REACHED_END, (data: { enemy: Enemy; livesLost: number }) => {
       this.economyManager.loseLives(data.livesLost);
-      HapticsManager.getInstance().lifeLost();
     });
 
-    EventBus.on(GameEvents.SPELL_TRIGGERED, (data: { type: SpellType }) => {
+    this.bus.on(GameEvents.SPELL_TRIGGERED, (data: { type: SpellType }) => {
       this.executeSpell(data.type);
     });
 
-    EventBus.on(GameEvents.VICTORY, () => {
+    this.bus.on(GameEvents.VICTORY, () => {
       this.handleVictory();
     });
 
-    EventBus.on(GameEvents.GAME_OVER, () => {
+    this.bus.on(GameEvents.GAME_OVER, () => {
       this.handleGameOver();
+    });
+
+    this.bus.on(GameEvents.BOSS_SPAWNED, () => {
+      this.cameras.main.shake(350, 0.012);
+    });
+
+    this.bus.on(GameEvents.GOLD_CHANGED, (gold: number) => {
+      if (gold >= 1500) {
+        AchievementsManager.getInstance().checkAndUnlock('gold_hoarder');
+      }
     });
   }
 
@@ -1488,7 +1530,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private executeSpell(type: SpellType): void {
-    AchievementsManager.getInstance().checkAndUnlock('spell_caster');
+    this.sessionSpellCasts += 1;
+    if (this.sessionSpellCasts >= 5) {
+      AchievementsManager.getInstance().checkAndUnlock('spell_caster');
+    }
 
     if (type === SpellType.METEOR) {
       this.cameras.main.shake(400, 0.02);
@@ -1531,7 +1576,9 @@ export class GameScene extends Phaser.Scene {
     } else if (this.isBossRush) {
       SaveManager.getInstance().recordBossRushProgress(this.waveManager.getCurrentWaveNumber(), score);
       AchievementsManager.getInstance().checkAndUnlock('boss_rush_champion');
-    } else if (!this.isEndless) {
+    } else if (this.isEndless) {
+      SaveManager.getInstance().recordEndlessProgress(this.waveManager.getCurrentWaveNumber(), score);
+    } else {
       SaveManager.getInstance().completeLevel(this.levelData.id, stars, score);
       if (stars === 3) {
         AchievementsManager.getInstance().checkAndUnlock('perfect_defense');
@@ -1543,6 +1590,7 @@ export class GameScene extends Phaser.Scene {
       if (this.levelData.id === 5) AchievementsManager.getInstance().checkAndUnlock('level_5_clear');
       if (this.levelData.id === 6) AchievementsManager.getInstance().checkAndUnlock('level_6_clear');
     }
+    SaveManager.getInstance().flush();
   }
 
   private handleGameOver(): void {
@@ -1551,7 +1599,10 @@ export class GameScene extends Phaser.Scene {
 
     if (this.isBossRush) {
       SaveManager.getInstance().recordBossRushProgress(this.waveManager.getCurrentWaveNumber(), this.economyManager.getScore());
+    } else if (this.isEndless) {
+      SaveManager.getInstance().recordEndlessProgress(this.waveManager.getCurrentWaveNumber(), this.economyManager.getScore());
     }
+    SaveManager.getInstance().flush();
   }
 
   public update(time: number, delta: number): void {
@@ -1575,7 +1626,7 @@ export class GameScene extends Phaser.Scene {
 
     // Atualiza Torres
     this.towers.forEach(tower => {
-      tower.updateTower(delta, speedMult, this.enemies, this.projectilesPool);
+      tower.updateTower(delta, speedMult, this.enemies, this.getProjectileSource());
     });
 
     // Atualiza Santuários Arcanos
@@ -1607,12 +1658,33 @@ export class GameScene extends Phaser.Scene {
 
     // Atualiza Herói e Companheiros
     if (this.hero) {
-      this.hero.updateHero(delta, speedMult, this.enemies, this.projectilesPool, this.towers);
+      this.hero.updateHero(delta, speedMult, this.enemies, this.getProjectileSource(), this.towers);
+    }
+
+    for (let i = this.activeProjectiles.length - 1; i >= 0; i--) {
+      const projectile = this.activeProjectiles[i];
+      projectile.updateProjectile(delta, speedMult);
+      if (!projectile.isActive) {
+        this.activeProjectiles.splice(i, 1);
+        this.projectilesPool.release(projectile);
+      }
+    }
+  }
+
+  private onSceneShutdown(): void {
+    this.bus.offAll();
+    this.activeProjectiles.forEach(p => {
+      p.isActive = false;
+      p.setVisible(false);
+    });
+    this.activeProjectiles = [];
+    if (this.scene.get('UIScene')?.scene.isActive() || this.scene.isSleeping('UIScene')) {
+      this.scene.stop('UIScene');
     }
   }
 
   public shutdown(): void {
-    EventBus.removeAllListeners();
+    this.onSceneShutdown();
   }
 }
 
