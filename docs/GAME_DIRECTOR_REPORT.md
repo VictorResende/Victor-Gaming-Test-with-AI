@@ -1,0 +1,284 @@
+# Game Director Report — Tower Defense Project
+**Repo:** Victor-Gaming-Test-with-AI · **Stack:** Phaser 3 + TypeScript + Vite + Capacitor (Android/iOS) · **Scope reviewed:** 16,677 lines across 36 source files
+**Prepared:** 2026-08-31 · **Method:** full-codebase audit by four parallel specialist passes (gameplay/balance, UI/UX/feel, progression/levels, platform/audio/assets), cross-checked against the project's `2d-games`, `game-design`, `mobile-games`, `game-audio`, and `game-art` skill references.
+
+---
+
+## 0. Executive Summary
+
+This is a **systemically ambitious** tower-defense build for a solo/AI-paired project — five towers each with three base levels plus a tier-4 fork into two specialized branches, ten enemy archetypes with a five-damage-type resistance matrix, three playable heroes with active abilities and leveling, plus four bolted-on meta layers (tech tree, relics, mod chips, hero perks) and four game modes (Standard, Endless, Boss Rush, Daily Challenge). For a project built without a dedicated art or audio pipeline, the breadth of *systems* is genuinely impressive.
+
+It is held back by four things, in order of how much they're currently costing the project:
+
+1. **One critical, session-breaking bug.** `GameScene`'s intended listener cleanup (`shutdown()`) is dead code — Phaser never calls it — so every restart/retry/next-level transition stacks duplicate event listeners on the shared global `EventBus`. In practice this means **the HUD stops updating correctly after the very first match**, and this was independently rediscovered by three separate review passes (gameplay, UI, and platform) approaching it from different files. This has to be fixed before anything else — new content built on top of it will only compound the leak.
+2. **Identity confusion.** The README describes a sci-fi "Galaxy Defenders," the git commit message says "Medieval Tower Defense," and the actual shipped `<title>` is "Reino dos Guardiões - Defesa Arcana." The code itself is a medieval-fantasy reskin (Goblins, Orcs, Dragons, Balistas, Santuários) layered on top of leftover sci-fi scaffolding (a `BiomeType` enum with values like `CYBER`/`ORBITAL` that no longer map to any real level theme). This needs to be settled before writing more level/marketing copy.
+3. **Content is thin relative to the systems built around it.** Only 6 levels exist to feed 6 biomes, a tech tree, hero perks, relics, mod chips, and 4 game modes — and several of those systems (achievement UI, endless progress tracking, one daily-challenge modifier) are already fully coded but never actually wired up or surfaced to the player.
+4. **No production art or audio pipeline exists yet, by design.** Every visual (94 textures) is procedurally drawn at runtime via Phaser's `Graphics` API, and every sound is synthesized live via raw Web Audio oscillators — there are **zero binary asset files** in the repo. This is a legitimate, low-cost prototyping choice, but it hard-caps visual/audio polish and needs a conscious decision (stay procedural vs. invest in real assets) before scaling content further.
+
+None of this is bad news for a project at this stage — it's exactly the kind of thing a director's pass should catch before the next content push. The plan below fixes the stability issues first, then rebalances, then unblocks scalable content authoring, then expands content, then invests in polish/production-readiness.
+
+---
+
+## 1. Critical Bugs (P0 — fix before anything else)
+
+| # | Bug | Where | Impact |
+|---|---|---|---|
+| 1 | **`EventBus` listener leak.** `GameScene.shutdown()` (`GameScene.ts:1614-1616`) calls `EventBus.removeAllListeners()`, but this method is never subscribed to Phaser's `Scenes.Events.SHUTDOWN` — it simply never runs. `GameScene.setupEventListeners()` (`GameScene.ts:1054-1118`) and `UIScene.setupEventListeners()` (`UIScene.ts:1919-2107`, plus `UIScene.ts:391`) re-register ~28 handlers on the shared, module-level `EventBus` singleton every time `GameScene`/`UIScene` run `create()` — which happens on every restart, retry, and level transition (`UIScene.ts:1460-1469`, `2234-2244`; `LevelSelectScene.ts:97,122,346`). `UIScene` itself is never stopped, only re-`launch()`ed onto an already-running instance (a Phaser no-op), so its `create()` never re-runs and its listeners are never refreshed either way. | Duplicate handlers stack up, stale closures reference destroyed scene state, the HUD (gold/lives/wave/hero HP) can stop updating correctly, memory grows every restart, and risk of runtime exceptions increases with session length. Reproducible from the **second** match played. |
+| 2 | **`Hero.executeOvercharge` (Ignis ultimate) ignores its own radius.** `Hero.ts:879-917` — the visual ring draws at radius 260 and correctly filters towers by distance, but the enemy damage/slow loop (`enemies.forEach(...)`) has no distance check at all. Every living enemy on the map takes 140–340 damage and a 40% slow, regardless of position. | A hero ultimate functions as a repeatable, zero-counterplay "reset the wave" button — both a bug and (independently) a severe balance problem. |
+| 3 | **`ObjectPool.release()` is never called anywhere.** `GameScene.ts:166` builds a 60-slot projectile pool, but nothing returns projectiles to it. Once exhausted, `ObjectPool.get()` (`ObjectPool.ts:14-25`) permanently falls back to creating new sprites forever. | Unbounded object growth in any match with >60 concurrent shots (trivial by mid-game) — defeats the pool's purpose and degrades performance over a session, worst in Endless mode. |
+| 4 | **Achievements screen is a hardcoded stub.** `MenuScene.ts:584-590` renders a local 5-item sample array with different text than the real `AchievementsManager.ACHIEVEMENTS_LIST` (16 items, `AchievementsManager.ts:13-30`). | 11 of 16 real achievements are permanently invisible to players — this is finished, working content nobody can see. |
+| 5 | **Endless mode never records its own headline stat.** `SaveManager.recordEndlessProgress()` (`SaveManager.ts:284`) is fully implemented but never called from anywhere; `endlessBestWave`/`endlessHighScore` are never read either. | "Best wave reached" — the entire bragging-rights hook of Endless mode — is permanently stuck at 0. |
+| 6 | **`ENERGY_SURGE` daily-challenge modifier is dead.** Fully defined with flavor text/icon (`dailyChallengeConfig.ts:52-57`) and can be randomly selected as one of two daily modifiers, but no gameplay code anywhere checks for it. | ~1 in 8 daily challenges silently promises an effect that never fires. |
+| 7 | **Boss spawns are untelegraphed.** `GameEvents.BOSS_SPAWNED` is emitted (`WaveManager.ts:164`) but has zero listeners anywhere. | No banner, camera shake, or music sting — a boss (or 2-3 simultaneous bosses on later levels) arrives with the same fanfare as a Scout. |
+| 8 | **Dead "Music Volume" control.** `UIScene.ts:1310-1345` builds a fully working music-volume UI wired to `AudioManager`'s `musicGainNode`, but no `playMusic` method exists anywhere and no music track ever plays through it. | A shipped, functional-looking control that does nothing audible — will be the first thing a reviewer/QA pass flags. |
+| 9 | **Gatling "Sniper" tier-4 branch doesn't do what its own description says.** Its flavor text claims armor-piercing shots (`gameConfig.ts:70-81`), but `Tower.ts:502-504` never sets an armor-ignore flag — it's a plain physical shot subject to normal mitigation, and is strictly worse than the sibling Vulcan branch as a result. | Broken signature mechanic on a paid (450g) upgrade path. |
+| 10 | **Chain/homing re-targeting picks array order, not nearest.** Homing missiles (`Projectile.ts:76-83`), Tesla arcs (`Tower.ts:645-647`), and mod-chip chain-ricochet (`ModChip.ts:89-94`) all re-target via `array.find(...)`/`candidates[0]` instead of nearest-distance. | Visually broken chains/homing that can jump backward past closer targets. |
+| 11 | **Two achievements aren't in their own definitions list.** `GameScene.ts:1530/1533` unlocks `'daily_master'`/`'boss_rush_champion'`, but neither ID exists in `ACHIEVEMENTS_LIST`, so the reward is silently granted with no unlock toast. | Players earn stars with zero feedback that anything happened. |
+| 12 | **Achievement flavor text has drifted from real level names** (e.g. references "Desfiladeiro Solar" for what is now "Floresta dos Sussurros"). `AchievementsManager.ts`. | Confusing/incorrect copy once achievements UI (#4) is fixed and visible. |
+| 13 | **Fire-and-forget saves risk data loss on mobile.** Nearly every `SaveManager` mutator (`completeLevel`, `unlockTech`, etc.) calls `this.save()` without awaiting it (`SaveManager.ts:150,157,219`). | Backgrounding/killing the app immediately after a level-clear — an extremely common mobile flow — can drop the write before it flushes. |
+| 14 | **Shielder allies can't protect each other once their own shield hits 0**, due to a hard `enemyType !== SHIELDER` gate instead of a `currentShield <= 0` check (`Enemy.ts:408`). | Unintended asymmetry in an enemy-support mechanic. |
+| 15 | **SafeArea/notch detection is dead code.** `index.html` never defines the `env(safe-area-inset-*)` CSS vars that `SafeArea.getInsets()` (`SafeArea.ts:43-53`) reads, and the fallback aspect-ratio heuristic is fed a constant 16:9 value under Phaser's fixed-canvas `FIT` scale mode — so every device gets the same hardcoded insets regardless of real notch/gesture-bar geometry. | Real notch/Dynamic-Island/gesture-bar safe areas are never actually respected on any device. |
+
+---
+
+## 2. Balance Issues (P1)
+
+Computed from `gameConfig.ts` (DPS = damage × fireRate; DPS/gold = DPS ÷ cumulative gold invested):
+
+- **Tesla (Storm Temple) is the single biggest outlier in the game.** Chain damage falls off only ~25% per bounce with minimal fire-rate penalty. Base tier-3 (870g invested): ~1,064 DPS against a 6-target cluster (1.22 DPS/gold). The tier-4 `tesla_storm` branch (1,420g invested, chainCount 10) reaches **~3,472 DPS against a packed wave — 5-10x the DPS/gold of any comparable AoE option.** Needs a steeper per-bounce falloff (50-60%) or a fire-rate penalty that scales with chain count.
+- **Cyber Sniper's Headshot ability is underpriced.** 665+ guaranteed damage (scales to 1,250+ by hero level 10) with a stun, on a 14s (11.2s perked) cooldown, against damage types most enemies aren't resistant to. This is more single-target burst than most towers deliver for a free, no-gold-cost hero ability.
+- **Cryo "Absolute Zero" tier-4 branch applies unconditional, effectively permanent stun-lock** (1.5s stun at a ~0.77s attack interval — `Tower.ts:531-534`). Functions as a hard CC button, not a DPS tower; its low DPS/gold number undersells how strong it actually is. Needs a diminishing-returns stun or internal cooldown.
+- **Drone Engineer's Combat Turret can double-stack from hero level 5 onward** — its duration formula (`15000 + level*1000`ms) meets/exceeds its fixed 20s cooldown, letting a second turret spawn before the first expires, with no cap on active turrets (`Hero.ts:133,433-440`).
+- **Low-tier towers are weak per gold relative to their tier-3/4 selves**, more than typical for the genre — Cryo level 1 is ~4x weaker per gold than Gatling level 1 even accounting for its slow, and that slow utility is never communicated to the player in the UI (compounds with Feature Gap on resistance visibility below).
+- **Relic pricing looks inconsistent.** Kings Crown (3 stars: +100 gold *and* +10% tower damage globally, compounding all match) is priced only 1 star above Holy Grail (2 stars: flat +5 lives, one-time). The former is strictly more impactful across a full match.
+- **Gold economy dips non-monotonically across levels** (350 → 450 → 550 → **500** → 550 → 600 — Level 4 drops below Level 3) while obstacle cost/HP scale up smoothly across the same levels — reads as an oversight, not intentional difficulty design.
+
+---
+
+## 3. Code Quality / Technical Debt (P1–P2)
+
+These don't block players today, but they directly determine how fast new content (Section 5/6) can be added — several are worth doing **before** the content sprints, not after.
+
+- **`UIScene.ts` (2,392 lines) is a monolith** covering HUD, hero widget, build deck, radial menu, tower inspector, pause/settings modal, mod-chip modal, tier-4 evolve modal, toast system, and threat indicators in one class with no sub-components.
+- **`Enemy.ts` (1,026 lines) fans out 6+ special-cased behavior branches** (Carrier, Shaman, 3-phase Boss, Stealth, Elite affixes, Shielder) inside shared update/damage/death methods rather than as composable behavior modules — this is the file most likely to become unmanageable as more enemy types are added.
+- **`Hero.ts` (1,292 lines) embeds two unrelated things**: a full second entity class (`MiniTurret`, lines 13-90) and ~120 lines of bespoke speech-bubble UI/graphics code (lines 619-737) inside the gameplay entity file.
+- **`Tower.fireAttack`/`fireLaser` (`Tower.ts:491-724`) are long if/else chains keyed on raw string `branchId` literals** with no enum backing — adding a 6th tower type means surgery inside a 230-line shared method rather than registering a new strategy table entry. This is very likely *why* bug #9 (broken Sniper branch) exists undetected.
+- **The crit/pierce/ignore-armor "on-hit" pipeline is duplicated near-verbatim in 5 places** (4x in `Tower.ts`, once in `Projectile.ts`) instead of one shared `ModChip.applyToHit()` helper — a direct cause of the branches drifting out of sync.
+- **Modal/panel chrome (parchment box + border + wax seal) is hand-copied with slightly different offsets across 6+ scenes** — a shared `ModalBuilder`/`UIPanel` utility would collapse hundreds of duplicated lines.
+- **No central "modifier → effect" registry** — each `TacticalModifier` is checked ad hoc in different files, which is exactly how `ENERGY_SURGE` (bug #6) fell through the cracks. A single `ModifierEffects` module would make "is every declared modifier wired up" a one-file audit.
+- **Level geometry (paths/build slots/obstacles) is ~85 hand-typed absolute-pixel lines per level** with no path-builder helper or relative coordinate system — directly slows down Section 6's level-authoring plan.
+- **Two independent, uncoordinated endless-wave-scaling formulas** exist (`WaveManager.generateEndlessWave` vs. `bossRushConfig.generateBossRushEndlessWave`).
+- **`RelicId` (`Constants.ts`, lowercase values) and `RelicType` (`relicsConfig.ts`, uppercase values) represent the same 5 relics with two different naming schemes**, plus raw string-literal call sites elsewhere — a latent drift risk.
+- **No save-schema versioning** — `SaveManager.load()` patches missing fields ad hoc in 3+ places with no stored schema version or real migration path, which will not gracefully survive a structural save-data change (e.g. for a future per-level replay system).
+- **No lint config and no CI gate** beyond the `tsc` step already baked into `npm run build` — worth adding a lint+typecheck CI job given the pace of AI-assisted changes.
+
+---
+
+## 4. Platform, Art & Audio Assessment
+
+- **100% procedural art, 100% synthesized audio, zero binary assets in the repo.** `AssetGenerator.ts` (2,727 lines, 94 `generateTexture()` calls) draws every sprite from primitive shapes at boot; `AudioManager.ts` (746 lines) generates every sound via raw Web Audio oscillators. This is a legitimate zero-cost prototyping strategy, but it hard-caps visual/audio polish (flat vector-style "sprites," no animation frames, no atlasing — the opposite of the 2d-games skill's atlas guidance) and adds real, uncached startup CPU cost on every cold boot on low-end Android hardware.
+- **There is no background music at all** — the settings UI and `AudioManager` gain-node plumbing for it already exist and just need a track and a `playMusic()` method (see Feature Gaps).
+- **Mobile platform scaffolding is mostly solid**: orientation lock, minimal Android permissions (`INTERNET`, `VIBRATE` only), consistent bundle ID across platforms, and a genuinely well-built `SafeArea` touch-target system (44-48px minimums) — undermined only by the dead notch-detection logic (bug #15).
+- **Not store-submission-ready yet**: stock Capacitor default icons/splash (unbranded), no Android release signing config, no iOS `PrivacyInfo.xcprivacy` (likely required for `@capacitor/preferences`/Haptics usage), `compileSdkVersion 34` should be checked against current Play Store target-API policy before submission, and the keystore-ignore lines in `android/.gitignore` are commented out (risk of accidentally committing a real keystore later).
+- **i18n is a genuine bright spot** — exactly 173/173 keys match between `pt` and `en` with zero orphaned or missing keys. Only gaps: no third locale yet, and `index.html`'s static title/lang/tooltip text never localizes.
+- **No analytics, crash reporting, or CI** exist — combined with `sourcemap: false` in the Vite config, a production crash today would be effectively undebuggable.
+
+---
+
+## 5. Feature Gaps & New Feature Recommendations
+
+Ranked roughly by leverage (impact vs. effort), not strict priority:
+
+1. **Surface enemy resistances to the player.** The 5-damage-type × 10-enemy resistance matrix is the game's deepest strategic layer and is currently completely invisible in the UI (no bestiary/tooltip anywhere). This is the highest-leverage design fix available — it turns "which tower do I build" from guesswork into the intended read-and-counter loop.
+2. **Let Endless mode use any unlocked level as its map**, not just Level 1 (`MenuScene.ts:121`). The wave generator is already level-agnostic — this is a same-day fix that instantly gives the mode 6x the map variety.
+3. **Boss telegraphing** — hook the already-emitted `BOSS_SPAWNED` event to a banner + camera beat + music sting.
+4. **Gate the 5 existing relics behind real unlock conditions** using the already-built (but unused) `unlockRelic()` API — currently all 5 are free from minute one, flattening what should be a real "3-of-5" deckbuilding choice.
+5. **A support/utility tower archetype** — all 5 current towers are pure damage-dealers; there's no economy tower, aura-buff tower, or dedicated anti-air specialist despite `isFlying` already existing as a data flag.
+6. **An anti-stealth mechanic** — `STEALTH` enemies currently have no purchasable counter (only incidental AoE reveals them), making them feel like a bypass rather than a puzzle.
+7. **Hero itemization/loadout system** — heroes currently have only a flat, unconditional perk tree; an "equip 2 of N" system analogous to relics would give real build diversity.
+8. **Cross-system synergies** between Relics / Mod Chips / Hero Perks / Arcane Shrines — all four meta layers are currently tuned in total isolation with zero interactions defined.
+9. **Boss variety** — the existing 3-phase boss state machine (phase transitions, ground stomp, bodyguard summons, shield phase) is generic enough to reuse for new boss archetypes per biome; today it's used for exactly one enemy.
+10. **A short onboarding/tutorial flow** — there is currently zero first-session guidance for drag-placement, the radial menu, target-priority cycling, or mod chips.
+11. **Background music + a hybrid audio approach** — keep procedural SFX for incidental sounds, add real/layered samples for hero moments (boss roar, victory fanfare, level-up), and finally use the already-wired music-volume control.
+12. **Accessibility passes**: verify/expand the "high contrast" toggle to a real colorblind-safe palette (the green/red valid-placement and target-priority indicators currently carry real gameplay meaning through color alone), plus a reduced-motion/reduced-particle toggle for battery/thermal reasons.
+13. **End-of-run stats/summary screen** (towers built, kills by type, MVP tower) — a standard, currently-missing retention hook.
+14. **A real art-pipeline decision** — even a hybrid (authored sprites for heroes and flagship tier-4 towers, procedural for everything else) would meaningfully raise perceived production value without a full art overhaul.
+15. **Push-notification hook for Daily Challenge** — the mode exists but nothing currently brings a player back to it after day one.
+
+---
+
+## 6. Level & Content Plan
+
+**Current state:** 6 standard levels + 1 Boss Rush "level" + Daily Challenge (reuses an existing level with modifiers). 6 `BiomeType` values exist but don't map cleanly to the 6 actual level themes/names — this looks like leftover scaffolding from an earlier sci-fi concept and should be reconciled first.
+
+**Pacing problems to fix before adding content, not after:**
+- Wave counts currently *shrink* as levels progress (L1=10 waves → L2-L6 = 5-7 waves) — the game's longest difficulty ramp is front-loaded into the tutorial. New/rebalanced levels should ramp *up* in length and complexity, the more conventional pattern.
+- Every level's final boss is the same single Dragon reused with only a count multiplier (1→1→2→2→2→3 across L1-L6) rather than distinct per-biome boss variants — undermines each level's climax.
+- Level 2 jumps straight from single-lane (L1) to dual-lane path-convergence with no intermediate step — a real complexity spike this early.
+- Level 5's teleporter mechanic is introduced once and never reused or escalated.
+
+**Recommended new-level plan (targets 10-12 total levels):**
+
+| New Level | Biome/Theme | Design intent |
+|---|---|---|
+| L1.5 (new) | Forest outskirts, single-lane | Bridge the single→dual-lane jump; teach target-priority cycling explicitly |
+| L7 | Distinct new biome (reconcile with `BiomeType`) | Reintroduce and escalate the teleporter mechanic from L5; first level to require 2+ tower types working together |
+| L8 | New biome | Introduce a unique boss variant reusing the existing phase-machine scaffolding, distinct stats/moveset from the Dragon |
+| L9 | New biome | Elite-affix-heavy level (Fast/Regenerating/Armored combos) to test tier-4 branch choices |
+| L10 (finale) | New biome, highest production value | Multi-boss climax using 2-3 *distinct* boss archetypes, not 3 copies of the same one |
+
+Each new level should also correct the wave-count curve (increasing, not decreasing, waves per level) and gold-economy curve (currently non-monotonic at L4).
+
+---
+
+## 7. Sprint Plan
+
+Six sprints, ~2 weeks each (≈12-week / 3-month roadmap), sized for a solo developer working AI-paired at the project's demonstrated velocity. Each sprint has a stated goal and should not start until the previous sprint's Definition of Done is met — the ordering here is deliberate: **stabilize → rebalance → make UX safe to build on → make the codebase safe to extend → then and only then add content → then invest in polish/store-readiness.**
+
+### Sprint 1 — Stabilization (P0 bug fixes)
+**Goal:** Nothing player-visible is silently broken. This sprint alone likely fixes the majority of any negative playtest feedback.
+- [ ] Fix `EventBus` listener leak — wrap subscriptions so each scene tracks its own handler refs and removes them on Phaser's real `SHUTDOWN`/`SLEEP` events, or namespace listeners per scene (bug #1)
+- [ ] Fix `Hero.executeOvercharge` to respect its 260 radius (bug #2)
+- [ ] Wire `ObjectPool.release()` into projectile lifecycle (bug #3)
+- [ ] Replace `MenuScene`'s hardcoded achievements stub with the real `ACHIEVEMENTS_LIST` (bug #4)
+- [ ] Call `SaveManager.recordEndlessProgress()` from the Endless game-over/wave-clear path (bug #5)
+- [ ] Implement or remove `ENERGY_SURGE` (bug #6)
+- [ ] Add a boss-spawn banner/camera-beat/sting listener on `BOSS_SPAWNED` (bug #7)
+- [ ] Either implement `playMusic()` or hide the music-volume control until it does something (bug #8)
+- [ ] Fix Gatling Sniper's armor-ignore mechanic to match its description (bug #9)
+- [ ] Fix chain/homing re-targeting to pick nearest, not array order (bug #10)
+- [ ] Add `daily_master`/`boss_rush_champion` to `ACHIEVEMENTS_LIST`, reconcile achievement flavor text with real level names (bugs #11, #12)
+- [ ] Await/queue `SaveManager` writes on the level-clear/critical-progress path (bug #13)
+- [ ] Fix Shielder ally-shield-share gate (bug #14)
+- [ ] Wire real `env(safe-area-inset-*)` CSS vars in `index.html` so `SafeArea` actually reads device geometry (bug #15)
+
+**Definition of Done:** a QA pass playing 5+ consecutive matches (restart/retry/next-level repeatedly) shows a HUD that stays correct throughout, and every settings/achievement control on screen does what it visibly claims to do.
+
+### Sprint 2 — Balance Pass
+**Goal:** No tower/ability/relic is a trap or a must-pick; power feels proportional to cost across the board.
+- [ ] Rework Tesla's chain-falloff curve and/or add a fire-rate penalty scaling with chain count
+- [ ] Re-cost or re-cooldown Cyber Sniper's Headshot
+- [ ] Add a diminishing-returns/ICD to Cryo "Absolute Zero"'s stun
+- [ ] Cap concurrent Combat Turrets or retune its duration-vs-cooldown formula
+- [ ] Buff low-tier tower DPS/gold (esp. Cryo level 1) or make its slow utility legible to the player
+- [ ] Re-price relics for consistent value-per-star (Kings Crown vs. Holy Grail as the reference case)
+- [ ] Smooth the gold-economy curve across levels (fix the Level 4 dip)
+
+**Definition of Done:** a spreadsheet pass of DPS/gold for every tower/branch and damage/cooldown for every hero ability shows no single option more than ~2x the next-best comparable option.
+
+### Sprint 3 — UX Foundations & Extensibility Refactor
+**Goal:** The codebase and UI are safe to build new content and features on top of — this sprint pays down debt that would otherwise be re-paid on every future feature.
+- [ ] Split `UIScene.ts` into sub-components (HUD, build deck, radial menu, inspector, modals) — even a lightweight composition split materially helps
+- [ ] Extract `Hero.ts`'s `MiniTurret` and speech-bubble code into their own files
+- [ ] Refactor `Tower.fireAttack`/`fireLaser` into a per-type/per-branch strategy table; give `branchId` a real enum
+- [ ] Consolidate the duplicated crit/pierce/ignore-armor pipeline into one `ModChip.applyToHit()` helper
+- [ ] Build a shared `ModalBuilder`/`UIPanel` utility and migrate at least 2-3 of the 6+ duplicated modal implementations onto it
+- [ ] Build a central `ModifierEffects` registry so every `TacticalModifier` has exactly one place it's wired
+- [ ] Reconcile `RelicId`/`RelicType` into one enum
+- [ ] Add a `saveVersion` field + minimal migration function to `SaveManager`
+- [ ] Add a short first-session onboarding flow (drag-to-place, target-priority, radial menu)
+- [ ] Add confirmation on Sell/Surrender for consequential actions
+
+**Definition of Done:** adding a hypothetical 6th tower type or 7th level touches config + one clearly-scoped code path, not multiple 1,000+ line files.
+
+### Sprint 4 — Level & Biome Content Expansion
+**Goal:** Ship the level plan from Section 6.
+- [ ] Reconcile `BiomeType` values with actual level themes (fix or remove the leftover sci-fi enum values)
+- [ ] Build a lightweight path/obstacle authoring helper to stop hand-typing raw pixel coordinates per level
+- [ ] Author L1.5, L7, L8, L9, L10 per the table in Section 6, each with an increasing (not decreasing) wave-count curve
+- [ ] Build 2-3 distinct new boss archetypes reusing the existing phase-machine scaffolding
+- [ ] Let Endless mode select any unlocked level as its base map
+- [ ] Rebalance wave/gold curves across all levels (old and new) for a smooth, increasing difficulty ramp
+
+**Definition of Done:** 10-12 levels exist, each biome is visually/thematically distinct and correctly named, wave counts ramp up across the game rather than down, and Endless mode supports all unlocked maps.
+
+### Sprint 5 — Feature Depth
+**Goal:** Give the meta-progression layers the strategic depth their scaffolding already implies.
+- [ ] Ship a bestiary/tooltip UI surfacing enemy resistances
+- [ ] Add a support/utility tower archetype and an anti-air/anti-stealth answer
+- [ ] Gate the 5 relics behind real unlock conditions via the existing `unlockRelic()` API
+- [ ] Add a hero loadout/itemization system ("equip N of M" perks, not a flat tree)
+- [ ] Add at least one new Arcane Shrine type and 2-4 new mod chips (consider rarity tiers)
+- [ ] Design at least 2-3 explicit cross-system synergies (e.g., a relic that boosts mod-chip proc rate, a shrine themed around stealth-reveal)
+
+**Definition of Done:** a player who reads the bestiary can explain *why* a given tower counters a given wave, and there's at least one build-crafting choice that meaningfully spans two of the four meta systems.
+
+### Sprint 6 — Audio/Art/Polish & Store Readiness
+**Goal:** Decide and execute the production-value investment, and clear the path to a real store submission.
+- [ ] Source or compose a looping menu/combat music track and wire `playMusic()`/crossfade into the existing `AudioManager` gain-node infrastructure
+- [ ] Upgrade key "hero moment" SFX (boss roar, victory fanfare, level-up) to real/layered samples; keep incidental SFX synthesized
+- [ ] Make an explicit call on the art pipeline (stay fully procedural vs. hybrid authored sprites for heroes/flagship towers) and execute it
+- [ ] Add a victory-moment camera beat (zoom/particle burst) and a defeat-moment beat distinct from routine life-loss feedback
+- [ ] Add an end-of-run stats/summary screen
+- [ ] Add colorblind-safe palette verification and a reduced-motion/particle toggle
+- [ ] Replace stock Capacitor icons/splash with branded art; add Android release signing config (keep the keystore out of git); add iOS `PrivacyInfo.xcprivacy`; bump `compileSdkVersion`/`targetSdkVersion` to current Play policy
+- [ ] Add a crash reporter and enable release sourcemaps
+- [ ] Add a third locale (Spanish) using the existing clean i18n template
+- [ ] Add a `tsc --noEmit` + lint CI gate
+
+**Definition of Done:** the build is signable, submittable to both stores, has music, and a fresh player's first 10 minutes feel materially more polished than today's build.
+
+---
+
+## 8. Immediate Next Steps (this week)
+
+1. **Decide the game's real name/identity** (medieval-fantasy "Reino dos Guardiões" appears to be the actual current direction) and update the stale README accordingly — five minutes of work that removes a recurring source of confusion for anyone new to the repo.
+2. **Fix the `EventBus` leak (Section 1, bug #1) first, in isolation**, and verify with a manual 5-restart playtest before touching anything else — everything downstream depends on this being solid.
+3. Triage the rest of Section 1's bug list into Sprint 1 and start executing top-down; most are small, independent, high-confidence fixes.
+4. Block time early in Sprint 3 (not later) for the `UIScene`/`Tower`/`Enemy` refactors — the level-content sprint (Sprint 4) will be materially slower and riskier without them.
+5. Make the art/audio investment decision (Section 4, Section 5 item 14) explicitly and early — it changes the scope of Sprint 6 significantly and is worth deciding before Sprint 4's new levels lock in a visual direction.
+
+---
+
+## 9. Recommended Libraries & Public GitHub Resources
+
+Researched and maintenance-checked (stars, last push, license, archive status) against the specific gaps identified above — nothing here is a "nice to have off the internet," each item maps directly to a section or sprint in this report. All checked 2026-08-31.
+
+### 9.1 Art & audio assets — addresses Section 4 (no binary assets exist) & Sprint 6
+
+| Resource | License | Fit |
+|---|---|---|
+| [Kenney — Tower Defense](https://kenney.nl/assets/tower-defense), [Tower Defense Kit](https://kenney.nl/assets/tower-defense-kit), [Tower Defense (Top-Down)](https://kenney.nl/assets/tower-defense-top-down) | CC0, no attribution | 230-300 ready-made TD sprites each (towers, projectiles, UI icons) — reskinnable to the medieval theme, sized correctly as a drop-in replacement path for `AssetGenerator.ts` output |
+| [Kenney — Castle Kit](https://kenney.nl/assets/castle-kit) | CC0 | 75 medieval-fantasy props/tiles — biome/level-art source matching the actual (not the leftover sci-fi) theme |
+| [OpenGameArt — CC0 Kenney uploads](https://opengameart.org/content/all-cc0-uploader-kenney), [CC0 Fantasy Music & Sounds](https://opengameart.org/content/cc0-fantasy-music-sounds) | CC0 | Aggregated mirror + additional fantasy SFX/music not in the core Kenney packs |
+| [Free Fantasy Medieval Ambient Music Pack (itch.io)](https://alkakrab.itch.io/free-fantasy-medieval-ambient-music-pack), [Free Medieval Fantasy Music (itch.io)](https://lisetteamago.itch.io/free-medieval-fantasy-music) | Free/royalty-free (verify each pack's specific terms before shipping) | Directly fills the "zero background music exists" gap (bug #8, Sprint 6) — loopable ambient/combat tracks |
+
+**Recommendation:** even without a full art-pipeline commitment, swapping just the hero portraits and the 5 flagship tower turrets to Kenney-based sprites (Sprint 6, Section 5 item 14's "hybrid" option) is a low-cost, high-visible-impact change that doesn't require an artist.
+
+### 9.2 UI component library — addresses Section 3 (6+ duplicated modal implementations)
+
+- **[rexrainbow/phaser3-rex-notes](https://github.com/rexrainbow/phaser3-rex-notes)** (npm: `phaser3-rex-plugins`) — MIT, 1,334 stars, **pushed this month** (actively maintained). Ships ready-made `Dialog`, `ScrollablePanel`, and `DropDownList` components. Adopting this for the pause/settings/mod-chip/tier-4/victory/defeat modals would directly replace the "hand-copied parchment-box chrome across 6 scenes" debt item with one battle-tested dependency instead of a from-scratch `ModalBuilder` (Sprint 3 task) — worth evaluating before building that utility by hand.
+
+### 9.3 Level authoring — addresses Section 3 (hand-typed pixel-coordinate levels) & Section 6 (5 new levels planned)
+
+- **[Tiled Map Editor](https://www.mapeditor.org/)** (open source, BSD/GPL) + **[mikewesthad/phaser-3-tilemap-blog-posts](https://github.com/mikewesthad/phaser-3-tilemap-blog-posts)** (285 stars, tutorial series, no separate license file — treat as reference/tutorial only, not a dependency). Authoring paths/build-slots/obstacles visually in Tiled and exporting JSON would replace the "~85 hand-typed coordinate lines per level" pattern and make Sprint 4's 5 new levels dramatically faster to build and iterate on than hand-editing `levelsConfig.ts` arrays.
+
+### 9.4 Localization — addresses Section 5 item 4 (add a 3rd locale) & Section 3 (no shared i18n abstraction)
+
+- **[i18next](https://www.i18next.com/)** directly (MIT, framework-agnostic) is the more defensible choice over a dedicated Phaser plugin here: the Phaser-specific wrappers found (`azerion/phaser-i18next` — last pushed 2022, 34 stars) are stale enough to be a maintenance risk for a project already running current Phaser/Vite/TS versions. Since `locales.ts`'s existing `t()`-key pattern already resembles i18next's model and has zero missing/orphaned keys today, a straight migration to i18next (keeping the current JSON structure) gets type-safe key checking and easy locale addition without taking on an unmaintained wrapper dependency.
+
+### 9.5 Testing & CI — addresses Section 3 ("no lint config and no CI gate") & Sprint 6
+
+- **[phaserjs/template-vite-ts](https://github.com/phaserjs/template-vite-ts)** (official Phaser Studio template, 193 stars, pushed this year) — useful as a config reference (tsconfig/vite.config patterns) even though this project already has its own working Vite setup.
+- **Vitest** — since the project already builds with Vite, adding Vitest is a zero-extra-tooling way to unit-test pure logic (damage/resistance math, `EconomyManager`, `WaveManager` wave generation, `SaveManager` migrations) without needing to boot a full Phaser/canvas context. [David Morais — "Testing Phaser Games with Vitest"](https://davidmorais.com/en/blog/testing-phaser-games-with-vitest) covers the pattern for separating testable game logic from Phaser scene/rendering code, which pairs naturally with the Sprint 3 refactor (pulling logic out of `UIScene`/`Enemy`/`Tower` monoliths also makes it independently testable).
+
+### 9.6 Mobile platform tooling — addresses Section 4 & Sprint 6 (store readiness)
+
+| Tool | License | Maintenance | Fit |
+|---|---|---|---|
+| **[@capacitor/assets](https://github.com/ionic-team/capacitor-assets)** (official Ionic team) | MIT | 584 stars, pushed Jan 2026 | Generates all iOS/Android/PWA icon and splash sizes from one source image — directly replaces the manual "produce N icon sizes" work in Sprint 6's store-readiness checklist. Run once real branded art (9.1) exists. |
+| **[@getsentry/sentry-capacitor](https://github.com/getsentry/sentry-capacitor)** | MIT | 147 stars, **pushed today** | Fills the "no crash reporting exists" gap (Section 4/Sprint 6) — pairs with enabling release sourcemaps (already a Sprint 6 task) to get readable production stack traces. |
+| **[@capacitor/local-notifications](https://capacitorjs.com/docs/apis/local-notifications)** | Official Capacitor plugin | Actively maintained | Fills the "no reminder hook for Daily Challenge" gap (Section 5 item 15) — local (no server) scheduled notifications are enough for a daily-reminder use case, no backend needed. |
+| **[@revenuecat/purchases-capacitor](https://github.com/RevenueCat/purchases-capacitor)** | MIT | 231 stars, **pushed today** | *Only relevant if monetization is pursued* (Section 4/5 flags "no monetization surface exists"). Wraps StoreKit/Play Billing behind one API — would sit naturally on top of the existing star/gold economy in `SaveManager` if a premium-currency or rewarded-ad model is chosen later. Not a near-term recommendation — flagging for when that product decision is made. |
+
+### 9.7 Reference implementations (read for ideas, not for reuse)
+
+Searched for comparable open-source Phaser 3 TD projects to sanity-check architecture choices. None are strong exemplars — all are small solo/hobby projects with low activity (`thilo-behnke/phaser3-tower-defense`: TS + MatterJS, 2 stars, last pushed 2023; `szvitek/tower-defense`: 3 stars, 2023; `CollCrom/PhaserTD`: 9 stars, 2017). **Worth noting explicitly: this project's own architecture (config-driven tower/enemy data, tier-4 branching, damage-type resistance matrix, EventBus-based scene communication) is already more sophisticated than any of these public references** — there isn't a stronger open-source TD codebase to crib from here. The Phaser team's own [official tower-defense tutorial](https://phaser.io/news/2018/12/tower-defense-tutorial) is a reasonable sanity-check for basic path-following/targeting patterns only, not an architecture reference at this project's scale.
+
+### 9.8 Summary — what to actually adopt, and when
+
+- **Now / Sprint 1-3 (near-zero risk, unblocks debt paydown):** Vitest (9.5), evaluate `phaser3-rex-plugins` (9.2) before hand-building `ModalBuilder`.
+- **Sprint 4 (unblocks the level-content push):** Tiled + tilemap JSON export (9.3).
+- **Sprint 5-6 (content/localization/polish):** i18next migration (9.4), Kenney asset packs for a hybrid art pass (9.1), itch.io/OpenGameArt music packs (9.1).
+- **Sprint 6 (store readiness):** `@capacitor/assets` (9.6), `sentry-capacitor` (9.6), `@capacitor/local-notifications` (9.6).
+- **Later, only if monetization is greenlit as a product decision:** `purchases-capacitor` (9.6).
