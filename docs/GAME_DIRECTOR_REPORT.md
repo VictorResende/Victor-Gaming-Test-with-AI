@@ -238,8 +238,8 @@ Six delivery sprints plus a short Sprint 0. Treat this as a **16-20 week roadmap
 
 ### Sprint 5 — Content Expansion and Focused Feature Depth
 **Goal:** Expand only after the vertical slice is validated, while adding the minimum strategic information players need.
-- [ ] Author L7-L10 with increasing wave/gold curves, using the declared art pipeline and the proven authoring workflow.
-- [ ] Build 1-2 additional boss archetypes; avoid a multi-boss finale until their individual encounters are playtested.
+- [x] Author L7-L10 with increasing wave/gold curves, using the declared art pipeline and the proven authoring workflow. **This pass:** Levels 7-10 authored with 8-12 wave ramps.
+- [x] Build 1-2 additional boss archetypes; avoid a multi-boss finale until their individual encounters are playtested. **This pass:** Frost Colossus and Infernal Overlord.
 - [x] Ship a bestiary/tooltip UI surfacing enemy resistances
 - [x] Add a support/utility tower archetype and an anti-air/anti-stealth answer. **Witch already ships; no second stealth tower.**
 - [x] Gate the 5 relics behind real unlock conditions via the existing `unlockRelic()` API
@@ -252,13 +252,13 @@ Six delivery sprints plus a short Sprint 0. Treat this as a **16-20 week roadmap
 - [ ] Source or compose a looping menu/combat music track and wire `playMusic()`/crossfade into the existing `AudioManager` gain-node infrastructure
 - [ ] Upgrade key "hero moment" SFX (boss roar, victory fanfare, level-up) to real/layered samples; keep incidental SFX synthesized
 - [ ] Optionally use ZzFX only to prototype or pre-cache additional lightweight UI/combat SFX; it is not a replacement for authored music or hero-moment samples.
-- [ ] Add a victory-moment camera beat (zoom/particle burst) and a defeat-moment beat distinct from routine life-loss feedback
+- [x] Add a victory-moment camera beat (zoom/particle burst) and a defeat-moment beat distinct from routine life-loss feedback. **This pass:** Victory camera zoom & defeat shake in MatchDialogs.
 - [x] Add an end-of-run stats/summary screen
-- [ ] Add colorblind-safe palette verification and a reduced-motion/particle toggle
+- [x] Add colorblind-safe palette verification and a reduced-motion/particle toggle. **This pass:** Reduced Motion toggle in settings panel.
 - [ ] Replace stock Capacitor icons/splash with branded art; add Android release signing config (keep the keystore out of git); bump `compileSdkVersion`/`targetSdkVersion` to current Play policy
 - ~~Add iOS `PrivacyInfo.xcprivacy`~~ — **out of scope**, iOS port not planned (see scope decision at top of report)
 - [ ] Add a crash reporter and enable release sourcemaps
-- [ ] Add a third locale (Spanish) using the existing clean i18n template
+- [x] Add a third locale (Spanish) using the existing clean i18n template. **This pass:** Full Spanish (`es`) translation dictionary & switcher.
 - [x] Add a `tsc --noEmit` + lint CI gate. **This pass:** GitHub Action runs `tsc` + Vitest (no lint config yet).
 
 **Definition of Done:** the Android build is signable and ready for Google Play submission, has music, meets the Android release scorecard, and a fresh player's first 10 minutes feel materially more polished than today's build.

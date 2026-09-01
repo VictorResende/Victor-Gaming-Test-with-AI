@@ -14,10 +14,11 @@ export interface GameSaveData {
     sfxEnabled: boolean;
     musicEnabled: boolean;
     hapticsEnabled: boolean;
-    language: 'pt' | 'en';
+    language: 'pt' | 'en' | 'es';
     sfxVolume: number;
     musicVolume: number;
     highContrast: boolean;
+    reducedMotion: boolean;
     seenOnboarding: boolean;
   };
   unlockedChips: string[];
@@ -51,6 +52,7 @@ export const DEFAULT_SAVE: GameSaveData = {
     sfxVolume: 1.0,
     musicVolume: 0.8,
     highContrast: false,
+    reducedMotion: false,
     seenOnboarding: false
   },
   unlockedChips: ['CRITICAL_STRIKE', 'CHAIN_RICOCHET', 'ARMOR_PIERCE', 'CRYO_BLAST'],

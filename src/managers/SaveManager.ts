@@ -317,6 +317,15 @@ export class SaveManager {
     this.save();
   }
 
+  public isReducedMotion(): boolean {
+    return !!this.data.settings.reducedMotion;
+  }
+
+  public setReducedMotion(enabled: boolean): void {
+    this.data.settings.reducedMotion = enabled;
+    this.save();
+  }
+
   public markOnboardingSeen(): void {
     this.data.settings.seenOnboarding = true;
     this.save();

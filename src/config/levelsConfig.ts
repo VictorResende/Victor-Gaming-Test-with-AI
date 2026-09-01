@@ -642,5 +642,163 @@ export const LEVELS_CONFIG: LevelData[] = [
         ]
       }
     ]
+  },
+  {
+    id: 8,
+    nameKey: 'level7Name',
+    biome: BiomeType.CITADEL,
+    descKey: 'level7Desc',
+    initialGold: 600,
+    initialLives: 20,
+    paths: [
+      [
+        { x: -30, y: 240 },
+        { x: 420, y: 240 },
+        { x: 420, y: 480 },
+        { x: 820, y: 480 },
+        { x: 820, y: 280 },
+        { x: 1320, y: 280 }
+      ]
+    ],
+    buildSlots: [
+      { x: 220, y: 160 }, { x: 220, y: 320 }, { x: 540, y: 360 }, { x: 540, y: 560 },
+      { x: 700, y: 380 }, { x: 940, y: 200 }, { x: 940, y: 360 }, { x: 1120, y: 360 }
+    ],
+    teleporters: [
+      { from: { x: 420, y: 480 }, to: { x: 820, y: 280 } }
+    ],
+    waves: [
+      { waveNumber: 1, groups: [{ enemyType: EnemyType.SCOUT, count: 12, spawnIntervalMs: 1000 }] },
+      { waveNumber: 2, groups: [{ enemyType: EnemyType.SOLDIER, count: 10, spawnIntervalMs: 1200 }, { enemyType: EnemyType.SHIELDER, count: 3, spawnIntervalMs: 1800 }] },
+      { waveNumber: 3, groups: [{ enemyType: EnemyType.FLYER, count: 12, spawnIntervalMs: 900 }] },
+      { waveNumber: 4, groups: [{ enemyType: EnemyType.TANK, count: 5, spawnIntervalMs: 2000 }, { enemyType: EnemyType.CARRIER, count: 2, spawnIntervalMs: 3000 }] },
+      { waveNumber: 5, groups: [{ enemyType: EnemyType.STEALTH, count: 14, spawnIntervalMs: 700 }, { enemyType: EnemyType.SHAMAN, count: 2, spawnIntervalMs: 2200 }] },
+      { waveNumber: 6, groups: [{ enemyType: EnemyType.SOLDIER, count: 16, spawnIntervalMs: 800 }, { enemyType: EnemyType.TANK, count: 6, spawnIntervalMs: 1600 }] },
+      { waveNumber: 7, groups: [{ enemyType: EnemyType.SHIELDER, count: 6, spawnIntervalMs: 1400 }, { enemyType: EnemyType.FLYER, count: 16, spawnIntervalMs: 800 }] },
+      { waveNumber: 8, groups: [{ enemyType: EnemyType.CARRIER, count: 4, spawnIntervalMs: 2200 }, { enemyType: EnemyType.GOLEM_BOSS, count: 1, spawnIntervalMs: 1000 }] }
+    ]
+  },
+  {
+    id: 9,
+    nameKey: 'level8Name',
+    biome: BiomeType.RAVINE,
+    descKey: 'level8Desc',
+    initialGold: 650,
+    initialLives: 20,
+    paths: [
+      [
+        { x: -30, y: 180 },
+        { x: 480, y: 180 },
+        { x: 480, y: 520 },
+        { x: 960, y: 520 },
+        { x: 960, y: 300 },
+        { x: 1320, y: 300 }
+      ]
+    ],
+    buildSlots: [
+      { x: 240, y: 100 }, { x: 240, y: 260 }, { x: 600, y: 340 }, { x: 600, y: 600 },
+      { x: 800, y: 440 }, { x: 1080, y: 220 }, { x: 1080, y: 380 }
+    ],
+    obstacles: [
+      { id: 'obs_8_1', x: 480, y: 350, type: 'rock', clearCost: 90, hp: 400, maxHp: 400 }
+    ],
+    waves: [
+      { waveNumber: 1, groups: [{ enemyType: EnemyType.SCOUT, count: 14, spawnIntervalMs: 900 }] },
+      { waveNumber: 2, groups: [{ enemyType: EnemyType.SOLDIER, count: 12, spawnIntervalMs: 1100 }] },
+      { waveNumber: 3, groups: [{ enemyType: EnemyType.TANK, count: 6, spawnIntervalMs: 1800 }] },
+      { waveNumber: 4, groups: [{ enemyType: EnemyType.FLYER, count: 16, spawnIntervalMs: 800 }] },
+      { waveNumber: 5, groups: [{ enemyType: EnemyType.SHAMAN, count: 3, spawnIntervalMs: 2000 }, { enemyType: EnemyType.SOLDIER, count: 14, spawnIntervalMs: 900 }] },
+      { waveNumber: 6, groups: [{ enemyType: EnemyType.STEALTH, count: 16, spawnIntervalMs: 700 }] },
+      { waveNumber: 7, groups: [{ enemyType: EnemyType.TANK, count: 8, spawnIntervalMs: 1500 }] },
+      { waveNumber: 8, groups: [{ enemyType: EnemyType.CARRIER, count: 4, spawnIntervalMs: 2000 }, { enemyType: EnemyType.FLYER, count: 18, spawnIntervalMs: 700 }] },
+      { waveNumber: 9, groups: [{ enemyType: EnemyType.SOLDIER, count: 18, spawnIntervalMs: 800 }, { enemyType: EnemyType.FROST_GIANT_BOSS, count: 1, spawnIntervalMs: 1000 }] }
+    ]
+  },
+  {
+    id: 10,
+    nameKey: 'level9Name',
+    biome: BiomeType.MAGMA,
+    descKey: 'level9Desc',
+    initialGold: 700,
+    initialLives: 20,
+    paths: [
+      [
+        { x: -30, y: 160 },
+        { x: 360, y: 160 },
+        { x: 360, y: 360 },
+        { x: 760, y: 360 },
+        { x: 760, y: 160 },
+        { x: 1160, y: 160 },
+        { x: 1160, y: 460 },
+        { x: 1320, y: 460 }
+      ]
+    ],
+    buildSlots: [
+      { x: 180, y: 240 }, { x: 480, y: 260 }, { x: 480, y: 440 }, { x: 640, y: 260 },
+      { x: 880, y: 240 }, { x: 1020, y: 240 }, { x: 1020, y: 380 }, { x: 1240, y: 380 }
+    ],
+    obstacles: [
+      { id: 'obs_9_1', x: 760, y: 260, type: 'magma_rock', clearCost: 110, hp: 500, maxHp: 500 }
+    ],
+    waves: [
+      { waveNumber: 1, groups: [{ enemyType: EnemyType.SOLDIER, count: 16, spawnIntervalMs: 900 }] },
+      { waveNumber: 2, groups: [{ enemyType: EnemyType.TANK, count: 8, spawnIntervalMs: 1600 }] },
+      { waveNumber: 3, groups: [{ enemyType: EnemyType.FLYER, count: 18, spawnIntervalMs: 700 }] },
+      { waveNumber: 4, groups: [{ enemyType: EnemyType.SHIELDER, count: 6, spawnIntervalMs: 1500 }] },
+      { waveNumber: 5, groups: [{ enemyType: EnemyType.STEALTH, count: 18, spawnIntervalMs: 600 }] },
+      { waveNumber: 6, groups: [{ enemyType: EnemyType.CARRIER, count: 5, spawnIntervalMs: 2000 }] },
+      { waveNumber: 7, groups: [{ enemyType: EnemyType.TANK, count: 10, spawnIntervalMs: 1400 }] },
+      { waveNumber: 8, groups: [{ enemyType: EnemyType.SHAMAN, count: 4, spawnIntervalMs: 1800 }, { enemyType: EnemyType.SOLDIER, count: 20, spawnIntervalMs: 700 }] },
+      { waveNumber: 9, groups: [{ enemyType: EnemyType.STEALTH, count: 22, spawnIntervalMs: 500 }] },
+      { waveNumber: 10, groups: [{ enemyType: EnemyType.TANK, count: 10, spawnIntervalMs: 1200 }, { enemyType: EnemyType.INFERNAL_BOSS, count: 1, spawnIntervalMs: 1000 }] }
+    ]
+  },
+  {
+    id: 11,
+    nameKey: 'level10Name',
+    biome: BiomeType.PINNACLE,
+    descKey: 'level10Desc',
+    initialGold: 800,
+    initialLives: 25,
+    paths: [
+      [
+        { x: -30, y: 200 },
+        { x: 420, y: 200 },
+        { x: 420, y: 400 },
+        { x: 840, y: 400 },
+        { x: 840, y: 200 },
+        { x: 1320, y: 200 }
+      ],
+      [
+        { x: -30, y: 520 },
+        { x: 420, y: 520 },
+        { x: 420, y: 400 },
+        { x: 840, y: 400 },
+        { x: 840, y: 520 },
+        { x: 1320, y: 520 }
+      ]
+    ],
+    buildSlots: [
+      { x: 220, y: 280 }, { x: 220, y: 440 }, { x: 420, y: 300 }, { x: 420, y: 500 },
+      { x: 630, y: 300 }, { x: 630, y: 500 }, { x: 840, y: 300 }, { x: 840, y: 500 },
+      { x: 1050, y: 280 }, { x: 1050, y: 440 }
+    ],
+    obstacles: [
+      { id: 'obs_10_1', x: 630, y: 400, type: 'debris', clearCost: 120, hp: 600, maxHp: 600 }
+    ],
+    waves: [
+      { waveNumber: 1, groups: [{ enemyType: EnemyType.SCOUT, count: 20, spawnIntervalMs: 700, pathIndex: 0 }, { enemyType: EnemyType.SOLDIER, count: 12, spawnIntervalMs: 900, pathIndex: 1 }] },
+      { waveNumber: 2, groups: [{ enemyType: EnemyType.TANK, count: 8, spawnIntervalMs: 1400, pathIndex: 0 }, { enemyType: EnemyType.FLYER, count: 16, spawnIntervalMs: 800, pathIndex: 1 }] },
+      { waveNumber: 3, groups: [{ enemyType: EnemyType.SHIELDER, count: 6, spawnIntervalMs: 1500, pathIndex: 0 }, { enemyType: EnemyType.STEALTH, count: 18, spawnIntervalMs: 600, pathIndex: 1 }] },
+      { waveNumber: 4, groups: [{ enemyType: EnemyType.CARRIER, count: 5, spawnIntervalMs: 1800, pathIndex: 0 }, { enemyType: EnemyType.SHAMAN, count: 4, spawnIntervalMs: 1800, pathIndex: 1 }] },
+      { waveNumber: 5, groups: [{ enemyType: EnemyType.GOLEM_BOSS, count: 1, spawnIntervalMs: 1000, pathIndex: 0 }, { enemyType: EnemyType.SOLDIER, count: 16, spawnIntervalMs: 800, pathIndex: 1 }] },
+      { waveNumber: 6, groups: [{ enemyType: EnemyType.TANK, count: 12, spawnIntervalMs: 1200, pathIndex: 0 }, { enemyType: EnemyType.FLYER, count: 20, spawnIntervalMs: 600, pathIndex: 1 }] },
+      { waveNumber: 7, groups: [{ enemyType: EnemyType.FROST_GIANT_BOSS, count: 1, spawnIntervalMs: 1000, pathIndex: 1 }, { enemyType: EnemyType.SHIELDER, count: 8, spawnIntervalMs: 1200, pathIndex: 0 }] },
+      { waveNumber: 8, groups: [{ enemyType: EnemyType.STEALTH, count: 24, spawnIntervalMs: 500, pathIndex: 0 }, { enemyType: EnemyType.CARRIER, count: 6, spawnIntervalMs: 1600, pathIndex: 1 }] },
+      { waveNumber: 9, groups: [{ enemyType: EnemyType.INFERNAL_BOSS, count: 1, spawnIntervalMs: 1000, pathIndex: 0 }, { enemyType: EnemyType.TANK, count: 14, spawnIntervalMs: 1000, pathIndex: 1 }] },
+      { waveNumber: 10, groups: [{ enemyType: EnemyType.GOLEM_BOSS, count: 1, spawnIntervalMs: 2000, pathIndex: 0 }, { enemyType: EnemyType.FROST_GIANT_BOSS, count: 1, spawnIntervalMs: 2000, pathIndex: 1 }] },
+      { waveNumber: 11, groups: [{ enemyType: EnemyType.INFERNAL_BOSS, count: 1, spawnIntervalMs: 2000, pathIndex: 0 }, { enemyType: EnemyType.BOSS, count: 1, spawnIntervalMs: 2000, pathIndex: 1 }] },
+      { waveNumber: 12, groups: [{ enemyType: EnemyType.BOSS, count: 2, spawnIntervalMs: 3000, pathIndex: 0 }, { enemyType: EnemyType.INFERNAL_BOSS, count: 1, spawnIntervalMs: 3000, pathIndex: 1 }] }
+    ]
   }
 ];
