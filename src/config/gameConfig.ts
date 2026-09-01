@@ -394,6 +394,24 @@ export const ENEMIES_CONFIG: Record<EnemyType, EnemyConfigData> = {
       [DamageType.FROST]: 0.6
     }
   },
+  [EnemyType.GOLEM_BOSS]: {
+    type: EnemyType.GOLEM_BOSS,
+    nameKey: 'enemyGolemBoss',
+    maxHp: 2200,
+    speed: 32,
+    rewardGold: 200,
+    scoreValue: 1200,
+    armor: 0.5,
+    color: 0x78716c,
+    size: 42,
+    isBoss: true,
+    resistances: {
+      [DamageType.PHYSICAL]: 0.5,
+      [DamageType.FROST]: 0.8,
+      [DamageType.LASER]: 1.3,
+      [DamageType.ELECTRIC]: 1.2
+    }
+  },
   [EnemyType.CARRIER]: {
     type: EnemyType.CARRIER,
     nameKey: 'enemyCarrier',

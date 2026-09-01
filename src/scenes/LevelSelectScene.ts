@@ -58,18 +58,18 @@ export class LevelSelectScene extends Phaser.Scene {
       }, 200, 40);
     }
 
-    const relicsY = topModesY + 50;
-    addGhostButton(this, width / 2, relicsY, t('relicsButton'), () => this.openRelicsModal(), 280, 40);
+    const relicsY = topModesY + 44;
+    addGhostButton(this, width / 2, relicsY, t('relicsButton'), () => this.openRelicsModal(), 280, 36);
 
-    const cardWidth = Math.min(340, (this.safeBounds.safeWidth - 48) / 3);
-    const cardHeight = 210;
+    const cardWidth = Math.min(320, (this.safeBounds.safeWidth - 48) / 3);
+    const cardHeight = 145;
     const colSpacing = (this.safeBounds.safeWidth - cardWidth * 3) / 2;
     const startX = this.safeBounds.left + cardWidth / 2;
-    const startY = relicsY + 128;
-    const rowSpacing = cardHeight + 18;
+    const startY = relicsY + 96;
+    const rowSpacing = cardHeight + 12;
 
     const biomeIcons: Record<number, string> = {
-      1: '🌲', 2: '🪓', 3: '❄️', 4: '🌋', 5: '🔮', 6: '🐉'
+      1: '🌲', 7: '🌿', 2: '🪓', 3: '❄️', 4: '🌋', 5: '🔮', 6: '🐉'
     };
 
     LEVELS_CONFIG.forEach((level, index) => {
@@ -108,35 +108,35 @@ export class LevelSelectScene extends Phaser.Scene {
       alpha: isUnlocked ? 0.94 : 0.72
     });
 
-    const title = this.add.text(0, -h / 2 + 28, `${biomeIcon}  ${levelTitle(level)}`, uiText(
+    const title = this.add.text(0, -h / 2 + 20, `${biomeIcon}  ${levelTitle(level)}`, uiText(
       isUnlocked ? UI.text.primary : UI.text.faint,
-      '14px',
-      { fontStyle: '700', wordWrap: { width: w - 24 }, align: 'center' }
+      '13px',
+      { fontStyle: '700', wordWrap: { width: w - 20 }, align: 'center' }
     )).setOrigin(0.5);
 
-    const desc = this.add.text(0, -h / 2 + 72, levelBlurb(level), uiText(
+    const desc = this.add.text(0, -h / 2 + 50, levelBlurb(level), uiText(
       isUnlocked ? UI.text.muted : UI.text.faint,
-      '11px',
-      { wordWrap: { width: w - 28 }, align: 'center' }
+      '10px',
+      { wordWrap: { width: w - 24 }, align: 'center' }
     )).setOrigin(0.5);
 
-    const starsRow = this.add.container(0, 18);
+    const starsRow = this.add.container(0, h / 2 - 46);
     if (isUnlocked) {
       for (let s = 0; s < 3; s++) {
-        starsRow.add(this.add.text((s - 1) * 28, 0, s < stars ? '★' : '☆', uiText(
+        starsRow.add(this.add.text((s - 1) * 24, 0, s < stars ? '★' : '☆', uiText(
           s < stars ? UI.text.amber : UI.text.faint,
-          '18px'
+          '16px'
         )).setOrigin(0.5));
       }
     } else {
-      starsRow.add(this.add.text(0, 0, '🔒', { fontSize: '18px' }).setOrigin(0.5));
+      starsRow.add(this.add.text(0, 0, '🔒', { fontSize: '16px' }).setOrigin(0.5));
     }
 
     const btn = isUnlocked
-      ? addPrimaryButton(this, 0, h / 2 - 36, this.endlessPick ? t('endless') : t('play'), () => {
+      ? addPrimaryButton(this, 0, h / 2 - 22, this.endlessPick ? t('endless') : t('play'), () => {
         delayedStart(this, 'GameScene', { levelId: level.id, isEndless: this.endlessPick });
-      }, 150, 40)
-      : this.add.text(0, h / 2 - 36, t('locked'), uiText(UI.text.faint, '12px', { fontStyle: '700' })).setOrigin(0.5);
+      }, 130, 32)
+      : this.add.text(0, h / 2 - 22, t('locked'), uiText(UI.text.faint, '12px', { fontStyle: '700' })).setOrigin(0.5);
 
     container.add([bg, title, desc, starsRow, btn]);
   }

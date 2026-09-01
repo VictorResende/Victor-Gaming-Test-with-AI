@@ -180,23 +180,28 @@ function enterBossPhase2(enemy: Enemy, towers?: Tower[], hero?: Hero): void {
   enemy.hasEnteredPhase2 = true;
   enemy.bossStompTimerMs = BOSS_STOMP_INTERVAL_MS;
 
-  if (!enemy.bossFuryAuraSprite && enemy.scene) {
-    enemy.bossFuryAuraSprite = enemy.scene.add.sprite(0, 0, 'fury_aura');
-    enemy.bossFuryAuraSprite.setAlpha(0.85);
-    enemy.addAt(enemy.bossFuryAuraSprite, 0);
-    enemy.scene.tweens.add({
-      targets: enemy.bossFuryAuraSprite,
-      scaleX: 1.25,
-      scaleY: 1.25,
-      alpha: 1,
-      rotation: Math.PI * 2,
-      yoyo: true,
-      duration: 1000,
-      repeat: -1
-    });
+  if (enemy.enemyType === EnemyType.GOLEM_BOSS) {
+    enemy.config = { ...enemy.config, armor: 0.7 }; // Aumenta a armadura de pedra
+    floatAnnounce(enemy.scene, enemy.x, enemy.y, t('golemBossPhase2Announce'), '#d97706');
+  } else {
+    if (!enemy.bossFuryAuraSprite && enemy.scene) {
+      enemy.bossFuryAuraSprite = enemy.scene.add.sprite(0, 0, 'fury_aura');
+      enemy.bossFuryAuraSprite.setAlpha(0.85);
+      enemy.addAt(enemy.bossFuryAuraSprite, 0);
+      enemy.scene.tweens.add({
+        targets: enemy.bossFuryAuraSprite,
+        scaleX: 1.25,
+        scaleY: 1.25,
+        alpha: 1,
+        rotation: Math.PI * 2,
+        yoyo: true,
+        duration: 1000,
+        repeat: -1
+      });
+    }
+    floatAnnounce(enemy.scene, enemy.x, enemy.y, t('bossPhase2Announce'), '#ef4444');
   }
 
-  floatAnnounce(enemy.scene, enemy.x, enemy.y, t('bossPhase2Announce'), '#ef4444');
   enemy.scene.cameras.main.shake(350, 0.015);
   executeBossGroundStomp(enemy, towers, hero);
 }
@@ -205,8 +210,9 @@ function executeBossGroundStomp(enemy: Enemy, towers?: Tower[], hero?: Hero): vo
   if (!enemy.isAlive || !enemy.scene) return;
   enemy.scene.cameras.main.shake(250, 0.012);
 
+  const shockTint = enemy.enemyType === EnemyType.GOLEM_BOSS ? 0xd97706 : 0xef4444;
   const shock = enemy.scene.add.sprite(enemy.x, enemy.y, 'fx_shockwave');
-  shock.setTint(0xef4444);
+  shock.setTint(shockTint);
   shock.setScale(0.3).setAlpha(0.95);
   enemy.scene.tweens.add({
     targets: shock,
@@ -241,25 +247,31 @@ function enterBossPhase3(enemy: Enemy): void {
   enemy.currentShield = (enemy.currentShield || 0) + shieldAmount;
   enemy.shieldRadius = 140;
 
-  if (!enemy.bossBlazingAegisGraphics && enemy.scene) {
-    enemy.bossBlazingAegisGraphics = enemy.scene.add.graphics();
-    enemy.add(enemy.bossBlazingAegisGraphics);
-    drawBlazingAegis(enemy);
-    enemy.scene.tweens.add({
-      targets: enemy.bossBlazingAegisGraphics,
-      scaleX: 1.1,
-      scaleY: 1.1,
-      alpha: 0.9,
-      yoyo: true,
-      duration: 800,
-      repeat: -1
-    });
+  if (enemy.enemyType === EnemyType.GOLEM_BOSS) {
+    floatAnnounce(enemy.scene, enemy.x, enemy.y, t('golemBossPhase3Announce'), '#78716c');
+    enemy.spawnAlongPath(EnemyType.SCOUT, 20);
+    enemy.spawnAlongPath(EnemyType.SOLDIER, 20);
+  } else {
+    if (!enemy.bossBlazingAegisGraphics && enemy.scene) {
+      enemy.bossBlazingAegisGraphics = enemy.scene.add.graphics();
+      enemy.add(enemy.bossBlazingAegisGraphics);
+      drawBlazingAegis(enemy);
+      enemy.scene.tweens.add({
+        targets: enemy.bossBlazingAegisGraphics,
+        scaleX: 1.1,
+        scaleY: 1.1,
+        alpha: 0.9,
+        yoyo: true,
+        duration: 800,
+        repeat: -1
+      });
+    }
+    spawnBodyguardOrc(enemy);
+    spawnBodyguardOrc(enemy);
+    floatAnnounce(enemy.scene, enemy.x, enemy.y, t('bossPhase3Announce'), '#f97316');
   }
 
   enemy.refreshBars();
-  spawnBodyguardOrc(enemy);
-  spawnBodyguardOrc(enemy);
-  floatAnnounce(enemy.scene, enemy.x, enemy.y, t('bossPhase3Announce'), '#f59e0b');
   enemy.scene.cameras.main.shake(400, 0.02);
 }
 

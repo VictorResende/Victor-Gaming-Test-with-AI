@@ -159,6 +159,84 @@ export const LEVELS_CONFIG: LevelData[] = [
     ]
   },
   {
+    id: 7,
+    nameKey: 'level1_5Name',
+    biome: BiomeType.FOREST,
+    descKey: 'level1_5Desc',
+    initialGold: 400,
+    initialLives: 20,
+    paths: [
+      [
+        { x: -30, y: 220 },
+        { x: 320, y: 220 },
+        { x: 320, y: 520 },
+        { x: 720, y: 520 },
+        { x: 720, y: 280 },
+        { x: 1120, y: 280 },
+        { x: 1320, y: 480 }
+      ]
+    ],
+    buildSlots: [
+      { x: 180, y: 140 }, { x: 180, y: 300 }, { x: 440, y: 370 }, { x: 440, y: 590 },
+      { x: 600, y: 440 }, { x: 840, y: 200 }, { x: 840, y: 360 }, { x: 1000, y: 360 },
+      { x: 1180, y: 380 }
+    ],
+    obstacles: [
+      { id: 'obs_1_5_1', x: 600, y: 280, type: 'rock', clearCost: 80, hp: 300, maxHp: 300 }
+    ],
+    waves: [
+      {
+        waveNumber: 1,
+        groups: [{ enemyType: EnemyType.SCOUT, count: 8, spawnIntervalMs: 1300 }]
+      },
+      {
+        waveNumber: 2,
+        groups: [
+          { enemyType: EnemyType.SCOUT, count: 6, spawnIntervalMs: 1200 },
+          { enemyType: EnemyType.SOLDIER, count: 4, spawnIntervalMs: 1600 }
+        ]
+      },
+      {
+        waveNumber: 3,
+        groups: [
+          { enemyType: EnemyType.SOLDIER, count: 8, spawnIntervalMs: 1300 },
+          { enemyType: EnemyType.FLYER, count: 4, spawnIntervalMs: 1500 }
+        ]
+      },
+      {
+        waveNumber: 4,
+        groups: [
+          { enemyType: EnemyType.SCOUT, count: 10, spawnIntervalMs: 900 },
+          { enemyType: EnemyType.TANK, count: 3, spawnIntervalMs: 2500 }
+        ]
+      },
+      {
+        waveNumber: 5,
+        groups: [
+          { enemyType: EnemyType.FLYER, count: 8, spawnIntervalMs: 1000 },
+          { enemyType: EnemyType.SOLDIER, count: 6, spawnIntervalMs: 1200 },
+          { enemyType: EnemyType.SHAMAN, count: 1, spawnIntervalMs: 2000 }
+        ]
+      },
+      {
+        waveNumber: 6,
+        groups: [
+          { enemyType: EnemyType.SCOUT, count: 12, spawnIntervalMs: 700 },
+          { enemyType: EnemyType.TANK, count: 4, spawnIntervalMs: 2000 },
+          { enemyType: EnemyType.FLYER, count: 8, spawnIntervalMs: 900 }
+        ]
+      },
+      {
+        waveNumber: 7,
+        groups: [
+          { enemyType: EnemyType.SOLDIER, count: 8, spawnIntervalMs: 1000 },
+          { enemyType: EnemyType.TANK, count: 4, spawnIntervalMs: 1800 },
+          { enemyType: EnemyType.GOLEM_BOSS, count: 1, spawnIntervalMs: 1000 }
+        ]
+      }
+    ]
+  },
+  {
     id: 2,
     nameKey: 'level2Name',
     biome: BiomeType.RAVINE,

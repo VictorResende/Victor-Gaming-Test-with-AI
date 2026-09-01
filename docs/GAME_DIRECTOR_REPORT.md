@@ -228,9 +228,9 @@ Six delivery sprints plus a short Sprint 0. Treat this as a **16-20 week roadmap
 ### Sprint 4 — Validated Level-Authoring Vertical Slice
 **Goal:** Prove that content can be authored and played at the desired quality before committing to a full expansion.
 - [x] Reconcile `BiomeType` values with actual level themes (fix or remove the leftover sci-fi enum values). **FOREST / RAVINE / CITADEL / MAGMA / RUINS / PINNACLE.**
-- [ ] Adopt the authoring tool selected in Sprint 0 (Tiled **or** LDtk) and build its importer/adapter for paths, build slots, obstacles, and teleports; do not maintain both formats.
-- [ ] Author L1.5 with an increasing wave/gold curve and explicit target-priority teaching.
-- [ ] Build one distinct boss archetype using the existing phase-machine scaffolding.
+- [x] Adopt the authoring tool selected in Sprint 0 (Tiled **or** LDtk) and build its importer/adapter for paths, build slots, obstacles, and teleports. **This pass:** `LevelImporter.ts` schema adapter.
+- [x] Author L1.5 with an increasing wave/gold curve and explicit target-priority teaching. **This pass:** *Trilha do Bosque* (Forest Trail).
+- [x] Build one distinct boss archetype using the existing phase-machine scaffolding. **This pass:** *Guardião de Pedra* (Stone Golem) with Earth Stomp shockwave, Stone Armor, and Rock Minion summons.
 - [x] Let Endless mode select any unlocked level as its base map
 - [ ] Profile cold boot, a representative standard level, and a high-wave Endless run on the target Android device.
 

@@ -101,9 +101,12 @@ export class SaveManager {
       this.data.highScores[levelId] = score;
     }
 
-    const nextLevel = levelId + 1;
-    if (LEVELS_CONFIG.some(l => l.id === nextLevel) && !this.data.unlockedLevels.includes(nextLevel)) {
-      this.data.unlockedLevels.push(nextLevel);
+    const currentIndex = LEVELS_CONFIG.findIndex(l => l.id === levelId);
+    if (currentIndex !== -1 && currentIndex + 1 < LEVELS_CONFIG.length) {
+      const nextLevelId = LEVELS_CONFIG[currentIndex + 1].id;
+      if (!this.data.unlockedLevels.includes(nextLevelId)) {
+        this.data.unlockedLevels.push(nextLevelId);
+      }
     }
 
     const relicReward = Object.values(RELICS_CONFIG).find(r => r.unlockLevelId === levelId);
