@@ -6,7 +6,7 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
-    sourcemap: false,
+    sourcemap: 'hidden',
     chunkSizeWarningLimit: 1500,
     rollupOptions: {
       output: {

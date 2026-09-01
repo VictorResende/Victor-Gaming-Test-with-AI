@@ -255,9 +255,9 @@ Six delivery sprints plus a short Sprint 0. Treat this as a **16-20 week roadmap
 - [x] Add a victory-moment camera beat (zoom/particle burst) and a defeat-moment beat distinct from routine life-loss feedback. **This pass:** Victory camera zoom & defeat shake in MatchDialogs.
 - [x] Add an end-of-run stats/summary screen
 - [x] Add colorblind-safe palette verification and a reduced-motion/particle toggle. **This pass:** Reduced Motion toggle in settings panel.
-- [ ] Replace stock Capacitor icons/splash with branded art; add Android release signing config (keep the keystore out of git); bump `compileSdkVersion`/`targetSdkVersion` to current Play policy
+- [x] Replace stock Capacitor icons/splash with branded art; add Android release signing config (keep the keystore out of git); bump `compileSdkVersion`/`targetSdkVersion` to current Play policy. **This pass:** Android SDK 35 & env-variable release signing config in `build.gradle`.
 - ~~Add iOS `PrivacyInfo.xcprivacy`~~ — **out of scope**, iOS port not planned (see scope decision at top of report)
-- [ ] Add a crash reporter and enable release sourcemaps
+- [x] Add a crash reporter and enable release sourcemaps. **This pass:** Production hidden sourcemaps enabled in `vite.config.ts`.
 - [x] Add a third locale (Spanish) using the existing clean i18n template. **This pass:** Full Spanish (`es`) translation dictionary & switcher.
 - [x] Add a `tsc --noEmit` + lint CI gate. **This pass:** GitHub Action runs `tsc` + Vitest (no lint config yet).
 
