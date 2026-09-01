@@ -65,7 +65,7 @@ export class KeyboardControls {
 
     // S: Vender torre selecionada
     keyboard.on('keydown-S', () => {
-      this.gameScene.sellCurrentTower();
+      this.uiScene.requestSell();
     });
 
     // T: Alternar mira da torre selecionada

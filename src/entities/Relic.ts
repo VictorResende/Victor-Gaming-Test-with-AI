@@ -1,8 +1,4 @@
-/**
- * Relic.ts — Sistema de Relíquias Ancestrais
- * Usa o RelicConfig do relicsConfig.ts atualizado.
- */
-import { RelicType, RELICS_CONFIG, RelicConfig } from '../config/relicsConfig';
+import { RelicType, RELICS_CONFIG, RelicConfig, relicDesc, relicName } from '../config/relicsConfig';
 
 export class Relic {
   public id: RelicType;
@@ -14,10 +10,10 @@ export class Relic {
   }
 
   public getName(): string {
-    return this.data.nameDefault;
+    return relicName(this.data);
   }
 
   public getDescription(): string {
-    return this.data.descDefault;
+    return relicDesc(this.data);
   }
 }

@@ -3,6 +3,7 @@ import { GAME_CONSTANTS } from '../core/Constants';
 import { SaveManager } from './SaveManager';
 import { HapticsManager } from './HapticsManager';
 import { AudioManager } from './AudioManager';
+import { starRating } from './starRating';
 
 export class EconomyManager {
   private gold: number;
@@ -71,10 +72,7 @@ export class EconomyManager {
   }
 
   public calculateStars(): number {
-    if (this.lives === this.initialLives) return 3;
-    if (this.lives >= Math.ceil(this.initialLives * 0.5)) return 2;
-    if (this.lives > 0) return 1;
-    return 0;
+    return starRating(this.lives, this.initialLives);
   }
 
   public emitInitialState(): void {

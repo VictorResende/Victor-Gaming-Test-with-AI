@@ -2,6 +2,39 @@
 **Repo:** Victor-Gaming-Test-with-AI · **Stack:** Phaser 3 + TypeScript + Vite + Capacitor (Android) · **Scope reviewed:** 16,677 lines across 36 source files
 **Prepared:** 2026-08-31 (updated) · **Method:** full-codebase audit by four parallel specialist passes (gameplay/balance, UI/UX/feel, progression/levels, platform/audio/assets), cross-checked against the project's `2d-games`, `game-design`, `mobile-games`, `game-audio`, and `game-art` skill references.
 
+## Director pass (2026-08-31, implementation)
+
+**Identity (frozen):** the game is **Reino dos Guardiões: Defesa Arcana** — medieval-fantasy tower defense, Android-first. README and browser title now match. Biomes are FOREST / RAVINE / CITADEL / MAGMA / RUINS / PINNACLE (sci-fi `CYBER`/`ORBITAL` enum names removed).
+
+**Art/audio (frozen until Sprint 6):** stay 100% procedural sprites + synthesized SFX. This pass adds a cheap looping pad so the existing music-volume control is honest; real tracks still wait for Sprint 6.
+
+**This session shipped (player-visible):**
+- Grimório, talentos de herói, runas, descrições T4 e o decreto diário (campos PT mortos) usam locale keys. Save merge/migration is a pure `mergeLoadedSave` with tests.
+- Map cards, bestiary/inspect names, honor titles, and achievement unlock toasts use locale keys. Achievement toasts now fire (`ACHIEVEMENT_UNLOCKED` was emitted and never shown). Pináculo props are torches/skulls (not solar panels/satellites); ruins use torches instead of alien pillars.
+- Relic names/descriptions, weather/obstacle/dragon banners, and crit floaters use locale keys. Relic loadout button/modal is localized. Star rating and daily modifiers have unit tests.
+- Enemy specials split into `enemyCombat` (tested damage/phase/leak math) + `enemySpecials` / `enemyFx`. Carrier death now actually drops a minion (was gated behind `isAlive=false`). Boss/shaman/slain banners are localized.
+- Bestiary/inspector threat lines and tower combat tags are localized (pt/en). Bottom build dock + drag-to-place live in `BuildDock` / `BuildDeckDrag`.
+- Top resource bar and match dialogs extracted (`TopMatchHud`, `MatchDialogs`). Wave/hero/endless toasts use locale keys. Endless milestones emit `SURVIVAL_MILESTONE_REACHED` (weather HUD listener is registered after BoundBus reset).
+- Hero widget, spell/ability gems, enemy inspect banner, and shared cooldown wedges extracted from `UIScene`.
+- Build-deck cards, radial tower menu, and inspector panel extracted (`BuildDeckCard`, `RadialTowerMenu`, `TowerInspectorPanel`); aim labels localized.
+- Pause, rune-chip, and tier-4 panels live in `PauseModal` / `ModChipModal` / `Tier4EvolveModal` (mute/equip/evolve copy is localized).
+- HUD toasts and elite edge-badges live in `ToastBanner` / `ThreatIndicators` (carrier badge is a skull, not a sci-fi saucer).
+- HUD/listeners no longer stack on restart/retry (UIScene now owns BoundBus handlers; GameScene already did).
+- Boss spawn toast + camera shake + thunder sting.
+- Achievement unlock toast; Endless best-wave already recorded.
+- Music volume now drives a looping ambient pad (starts on first tap).
+- Notch/gesture insets: `index.html` now exposes `--sat/--sab/--sal/--sar` from `env(safe-area-inset-*)`.
+- Saves flush on background/pagehide; `saveVersion` field added.
+- Balance: Tesla chain now halves per bounce + Storm fire-rate cut; Cryo Absolute Zero stun has ICD; Combat Turret no longer double-stacks; Headshot 18s / 480 dmg; King's Crown 4★; L4–L6 gold 575 / 625 / 700.
+- Cryo/build-card combat roles; tap-enemy + pause Bestiary for resistances.
+- Sell / restart / surrender confirmations; Endless map picker; relics gated behind campaign clears (Crown from minute one).
+- First-session onboarding toasts; victory/defeat run stats; CI typecheck+tests.
+
+**Cut / defer this week:** Tiled/LDtk spike, L1.5, i18next, Sentry/PostHog, iOS, new towers. Witch already covers anti-stealth — do not add a second stealth answer until playtest says otherwise. Relic gating shipped (Crown at start; others on campaign clears). `UIScene` is now an orchestrator (listeners, drag-to-build, cooldowns).
+
+**Next:** Android restart QA (5× surrender/retry) still needs a device. Cryo T1 slow is now on the build card and inspector. Do not open Sprint 4 content until that restart scenario is verified on Android.
+
+---
 > **Scope decision: the iOS port is out of scope.** This project will ship Android-only (plus the existing web/browser dev build). The `ios/` Capacitor project remains in the repo and stays buildable, but no further iOS-specific work — App Store readiness, `PrivacyInfo.xcprivacy`, iOS signing/provisioning, TestFlight, etc. — is planned. iOS-specific items below are marked accordingly rather than removed, in case this is revisited later.
 
 ---
@@ -61,10 +94,10 @@ Computed from `gameConfig.ts` (DPS = damage × fireRate; DPS/gold = DPS ÷ cumul
 
 These don't block players today, but they directly determine how fast new content (Section 5/6) can be added — several are worth doing **before** the content sprints, not after.
 
-- **`UIScene.ts` (2,392 lines) is a monolith** covering HUD, hero widget, build deck, radial menu, tower inspector, pause/settings modal, mod-chip modal, tier-4 evolve modal, toast system, and threat indicators in one class with no sub-components.
+- **`UIScene.ts` is an orchestrator** (event bus, drag-to-place, cooldown ticks). HUD chrome and match dialogs live in extracted modules.
 - **`Enemy.ts` (1,026 lines) fans out 6+ special-cased behavior branches** (Carrier, Shaman, 3-phase Boss, Stealth, Elite affixes, Shielder) inside shared update/damage/death methods rather than as composable behavior modules — this is the file most likely to become unmanageable as more enemy types are added.
 - **`Hero.ts` (1,292 lines) embeds two unrelated things**: a full second entity class (`MiniTurret`, lines 13-90) and ~120 lines of bespoke speech-bubble UI/graphics code (lines 619-737) inside the gameplay entity file.
-- **`Tower.fireAttack`/`fireLaser` (`Tower.ts:491-724`) are long if/else chains keyed on raw string `branchId` literals** with no enum backing — adding a 6th tower type means surgery inside a 230-line shared method rather than registering a new strategy table entry. This is very likely *why* bug #9 (broken Sniper branch) exists undetected.
+- **`Tower.fireAttack` is a per-`TowerType` table; `fireLaser` is a per-`laserFireKind` table** (`prism` / `orbital` / `beam`) on `TowerBranchId`. Adding a 6th tower still means a new table entry plus config, not a 230-line if/else.
 - **The crit/pierce/ignore-armor "on-hit" pipeline is duplicated near-verbatim in 5 places** (4x in `Tower.ts`, once in `Projectile.ts`) instead of one shared `ModChip.applyToHit()` helper — a direct cause of the branches drifting out of sync.
 - **Modal/panel chrome (parchment box + border + wax seal) is hand-copied with slightly different offsets across 6+ scenes** — a shared `ModalBuilder`/`UIPanel` utility would collapse hundreds of duplicated lines.
 - **No central "modifier → effect" registry** — each `TacticalModifier` is checked ad hoc in different files, which is exactly how `ENERGY_SURGE` (bug #6) fell through the cracks. A single `ModifierEffects` module would make "is every declared modifier wired up" a one-file audit.
@@ -141,64 +174,64 @@ Six delivery sprints plus a short Sprint 0. Treat this as a **16-20 week roadmap
 
 ### Sprint 0 — Product and Production Constraints (2-3 days)
 **Goal:** Remove decisions that would otherwise cause rework.
-- [ ] Confirm the game name, medieval-fantasy positioning, target player, and the desired first 10-minute session; update the README and static browser metadata to match.
-- [ ] Define the Android release target and a small release scorecard (retention/playtest signal, stability, performance, store requirements).
-- [ ] Decide and document the art pipeline before new-map production: procedural, hybrid authored heroes/flagship towers, or fully authored.
-- [ ] Time-box two technical spikes: author one representative path/build-slot/teleporter layout in **Tiled and LDtk**, then choose one; and create/export one hero or tier-4-tower asset in Pixelorama to validate the hybrid-art path.
-- [ ] Freeze or explicitly defer systems that do not support the next playable release; do not grow all four meta-progression systems concurrently.
+- [x] Confirm the game name, medieval-fantasy positioning, target player, and the desired first 10-minute session; update the README and static browser metadata to match. **Done this pass:** *Reino dos Guardiões: Defesa Arcana*, Android-first.
+- [x] Define the Android release target and a small release scorecard (retention/playtest signal, stability, performance, store requirements). **Minimal scorecard:** 5× restart without HUD desync; flush after level-clear survives backgrounding; 30fps on target device in a mid-campaign wave. Store icons/signing remain Sprint 6.
+- [x] Decide and document the art pipeline before new-map production: **procedural until Sprint 6**, then hybrid Kenney/Pixelorama for heroes + flagship T4 only.
+- [ ] Time-box two technical spikes: author one representative path/build-slot/teleporter layout in **Tiled and LDtk**, then choose one; and create/export one hero or tier-4-tower asset in Pixelorama to validate the hybrid-art path. **Deferred** — do not block Sprint 1/2.
+- [x] Freeze or explicitly defer systems that do not support the next playable release; do not grow all four meta-progression systems concurrently. **Frozen:** relic gating, hero itemization, extra synergies, iOS.
 
 **Definition of Done:** a one-page product brief and a current README describe the same Android-first game, and the art/content team has a declared visual production rule.
 
 ### Sprint 1 — Correctness and Session Stability (P0)
 **Goal:** A completed or restarted match never corrupts the next match, loses critical progress, or presents a false reward.
-- [ ] Fix the `EventBus` listener leak by retaining each scene's callback references and removing only those callbacks with `off(event, callback, context)` on Phaser's actual `SHUTDOWN`/`DESTROY` lifecycle event. Do **not** use global `removeAllListeners()` as the fix (bug #1).
-- [ ] Fix `Hero.executeOvercharge` to respect its 260 radius (bug #2)
-- [ ] Wire `ObjectPool.release()` into projectile lifecycle (bug #3)
-- [ ] Replace `MenuScene`'s hardcoded achievements stub with the real `ACHIEVEMENTS_LIST` (bug #4)
-- [ ] Call `SaveManager.recordEndlessProgress()` from the Endless game-over/wave-clear path (bug #5)
-- [ ] Implement or remove `ENERGY_SURGE` (bug #6)
-- [ ] Add `daily_master`/`boss_rush_champion` to `ACHIEVEMENTS_LIST`, reconcile achievement flavor text with real level names (bugs #11, #12)
-- [ ] Add a serialized save queue and a `flush()` path for level-clear/unlock/background events; do not merely scatter `await` calls across gameplay code (bug #13).
-- [ ] Add a deterministic browser test harness for the five-transition scenario and baseline visual snapshots for the menu/HUD states that do not depend on random gameplay.
+- [x] Fix the `EventBus` listener leak by retaining each scene's callback references and removing only those callbacks with `off(event, callback, context)` on Phaser's actual `SHUTDOWN`/`DESTROY` lifecycle event. Do **not** use global `removeAllListeners()` as the fix (bug #1). **Done:** `BoundBus` on GameScene + UIScene; UIScene HUD handlers were the remaining leak this pass.
+- [x] Fix `Hero.executeOvercharge` to respect its 260 radius (bug #2)
+- [x] Wire `ObjectPool.release()` into projectile lifecycle (bug #3)
+- [x] Replace `MenuScene`'s hardcoded achievements stub with the real `ACHIEVEMENTS_LIST` (bug #4)
+- [x] Call `SaveManager.recordEndlessProgress()` from the Endless game-over/wave-clear path (bug #5)
+- [x] Implement or remove `ENERGY_SURGE` (bug #6) — laser/electric +50%, physical −30%
+- [x] Add `daily_master`/`boss_rush_champion` to `ACHIEVEMENTS_LIST`, reconcile achievement flavor text with real level names (bugs #11, #12)
+- [x] Add a serialized save queue and a `flush()` path for level-clear/unlock/background events; do not merely scatter `await` calls across gameplay code (bug #13). **This pass:** `visibilitychange`/`pagehide` flush + `saveVersion`.
+- [x] Add a deterministic browser test harness for the five-transition scenario and baseline visual snapshots for the menu/HUD states that do not depend on random gameplay. **This pass:** Vitest BoundBus 5× recreate harness (listener count stays 1). Playwright HUD snapshots still deferred.
 
 **Definition of Done:** an automated or instrumented scenario executes start → restart → next level five times; listener counts remain stable; HUD, gold, lives, wave, and hero HP remain correct; and force-backgrounding immediately after a level clear preserves the unlock/progress. Manual QA confirms the same scenario on Android.
 
 ### Sprint 2 — Balance Pass
 **Goal:** No tower/ability/relic is a trap or a must-pick; power feels proportional to cost across the board.
-- [ ] Rework Tesla's chain-falloff curve and/or add a fire-rate penalty scaling with chain count
-- [ ] Re-cost or re-cooldown Cyber Sniper's Headshot
-- [ ] Add a diminishing-returns/ICD to Cryo "Absolute Zero"'s stun
-- [ ] Cap concurrent Combat Turrets or retune its duration-vs-cooldown formula
-- [ ] Buff low-tier tower DPS/gold (esp. Cryo level 1) or make its slow utility legible to the player
-- [ ] Re-price relics for consistent value-per-star (Kings Crown vs. Holy Grail as the reference case)
-- [ ] Smooth the gold-economy curve across levels (fix the Level 4 dip)
-- [ ] Fix Gatling Sniper's armor-ignore mechanic and nearest-target chain/homing behavior (bugs #9, #10); fix the Shielder sharing gate (bug #14).
+- [x] Rework Tesla's chain-falloff curve and/or add a fire-rate penalty scaling with chain count
+- [x] Re-cost or re-cooldown Cyber Sniper's Headshot
+- [x] Add a diminishing-returns/ICD to Cryo "Absolute Zero"'s stun
+- [x] Cap concurrent Combat Turrets or retune its duration-vs-cooldown formula
+- [x] Buff low-tier tower DPS/gold (esp. Cryo level 1) or make its slow utility legible to the player. **This pass:** Cryo T1 120g / 14×1.4; inspector shows `−50% vel`; build card labeled `❄️ −50% vel`.
+- [x] Re-price relics for consistent value-per-star (Kings Crown vs. Holy Grail as the reference case)
+- [x] Smooth the gold-economy curve across levels (fix the Level 4 dip)
+- [x] Fix Gatling Sniper's armor-ignore mechanic and nearest-target chain/homing behavior (bugs #9, #10); fix the Shielder sharing gate (bug #14).
 
 **Definition of Done:** a reproducible balance workbook/scenario suite records cumulative cost, sustained single-target and clustered DPS, effective CC uptime, damage-type resistances, and boss time-to-kill. No comparable option is >~2x the next-best option without an explicit, playtested tradeoff.
 
 ### Sprint 3 — UX Foundations & Extensibility Refactor
 **Goal:** The codebase and UI are safe to build new content and features on top of — this sprint pays down debt that would otherwise be re-paid on every future feature.
-- [ ] Split `UIScene.ts` into sub-components (HUD, build deck, radial menu, inspector, modals) — even a lightweight composition split materially helps
-- [ ] Extract `Hero.ts`'s `MiniTurret` and speech-bubble code into their own files
-- [ ] Refactor `Tower.fireAttack`/`fireLaser` into a per-type/per-branch strategy table; give `branchId` a real enum
-- [ ] Consolidate the duplicated crit/pierce/ignore-armor pipeline into one `ModChip.applyToHit()` helper
-- [ ] Build a shared `ModalBuilder`/`UIPanel` utility and migrate at least 2-3 of the 6+ duplicated modal implementations onto it
-- [ ] Build a central `ModifierEffects` registry so every `TacticalModifier` has exactly one place it's wired
-- [ ] Reconcile `RelicId`/`RelicType` into one enum
-- [ ] Add a `saveVersion` field + minimal migration function to `SaveManager`
-- [ ] Add a short first-session onboarding flow (drag-to-place, target-priority, radial menu)
-- [ ] Add confirmation on Sell/Surrender for consequential actions
-- [ ] Add the boss-spawn telegraph, hide or implement the inactive music control, and correct real safe-area CSS variables (bugs #7, #8, #15).
+- [x] Split `UIScene.ts` into sub-components (HUD, build deck, radial menu, inspector, modals) — even a lightweight composition split materially helps. **This pass:** `UIScene` orchestrates; chrome lives in extracted HUD/dialog modules.
+- [x] Extract `Hero.ts`'s `MiniTurret` and speech-bubble code into their own files.
+- [x] Refactor `Tower.fireAttack`/`fireLaser` into a per-type/per-branch strategy table; give `branchId` a real enum
+- [x] Consolidate the duplicated crit/pierce/ignore-armor pipeline into one `ModChip.applyToHit()` helper
+- [x] Build a shared `ModalBuilder`/`UIPanel` utility and migrate at least 2-3 of the 6+ duplicated modal implementations onto it. **This pass:** `createDimModal` used by confirm, bestiary, victory, defeat.
+- [x] Build a central `ModifierEffects` registry so every `TacticalModifier` has exactly one place it's wired
+- [x] Reconcile `RelicId`/`RelicType` into one enum
+- [x] Add a `saveVersion` field + minimal migration function to `SaveManager`
+- [x] Add a short first-session onboarding flow (drag-to-place, target-priority, radial menu)
+- [x] Add confirmation on Sell/Surrender for consequential actions
+- [x] Add the boss-spawn telegraph, hide or implement the inactive music control, and correct real safe-area CSS variables (bugs #7, #8, #15). **This pass:** toast + shake + thunder; procedural pad on music bus; CSS env vars.
 
 **Definition of Done:** adding a hypothetical 6th tower type or 7th level touches config plus one clearly-scoped code path, not multiple 1,000+ line files; core pure logic has automated tests; and all visible controls deliver their advertised result.
 
 ### Sprint 4 — Validated Level-Authoring Vertical Slice
 **Goal:** Prove that content can be authored and played at the desired quality before committing to a full expansion.
-- [ ] Reconcile `BiomeType` values with actual level themes (fix or remove the leftover sci-fi enum values)
+- [x] Reconcile `BiomeType` values with actual level themes (fix or remove the leftover sci-fi enum values). **FOREST / RAVINE / CITADEL / MAGMA / RUINS / PINNACLE.**
 - [ ] Adopt the authoring tool selected in Sprint 0 (Tiled **or** LDtk) and build its importer/adapter for paths, build slots, obstacles, and teleports; do not maintain both formats.
 - [ ] Author L1.5 with an increasing wave/gold curve and explicit target-priority teaching.
 - [ ] Build one distinct boss archetype using the existing phase-machine scaffolding.
-- [ ] Let Endless mode select any unlocked level as its base map
+- [x] Let Endless mode select any unlocked level as its base map
 - [ ] Profile cold boot, a representative standard level, and a high-wave Endless run on the target Android device.
 
 **Definition of Done:** a playtest validates the new authoring workflow, L1.5, and the new boss; target-device FPS, cold-start time, memory after a high-wave Endless run, and background/return behavior meet the Sprint 0 scorecard.
@@ -207,9 +240,9 @@ Six delivery sprints plus a short Sprint 0. Treat this as a **16-20 week roadmap
 **Goal:** Expand only after the vertical slice is validated, while adding the minimum strategic information players need.
 - [ ] Author L7-L10 with increasing wave/gold curves, using the declared art pipeline and the proven authoring workflow.
 - [ ] Build 1-2 additional boss archetypes; avoid a multi-boss finale until their individual encounters are playtested.
-- [ ] Ship a bestiary/tooltip UI surfacing enemy resistances
-- [ ] Add a support/utility tower archetype and an anti-air/anti-stealth answer
-- [ ] Gate the 5 relics behind real unlock conditions via the existing `unlockRelic()` API
+- [x] Ship a bestiary/tooltip UI surfacing enemy resistances
+- [x] Add a support/utility tower archetype and an anti-air/anti-stealth answer. **Witch already ships; no second stealth tower.**
+- [x] Gate the 5 relics behind real unlock conditions via the existing `unlockRelic()` API
 - [ ] Add only one additional meta layer or one cross-system synergy after playtest evidence supports it; defer hero itemization and broad mod-chip expansion by default.
 
 **Definition of Done:** 10-12 levels exist, each biome is correctly named and distinct; a player who reads the bestiary can explain why a tower counters a wave; and at least one validated build-crafting choice spans two meta systems.
@@ -220,13 +253,13 @@ Six delivery sprints plus a short Sprint 0. Treat this as a **16-20 week roadmap
 - [ ] Upgrade key "hero moment" SFX (boss roar, victory fanfare, level-up) to real/layered samples; keep incidental SFX synthesized
 - [ ] Optionally use ZzFX only to prototype or pre-cache additional lightweight UI/combat SFX; it is not a replacement for authored music or hero-moment samples.
 - [ ] Add a victory-moment camera beat (zoom/particle burst) and a defeat-moment beat distinct from routine life-loss feedback
-- [ ] Add an end-of-run stats/summary screen
+- [x] Add an end-of-run stats/summary screen
 - [ ] Add colorblind-safe palette verification and a reduced-motion/particle toggle
 - [ ] Replace stock Capacitor icons/splash with branded art; add Android release signing config (keep the keystore out of git); bump `compileSdkVersion`/`targetSdkVersion` to current Play policy
 - ~~Add iOS `PrivacyInfo.xcprivacy`~~ — **out of scope**, iOS port not planned (see scope decision at top of report)
 - [ ] Add a crash reporter and enable release sourcemaps
 - [ ] Add a third locale (Spanish) using the existing clean i18n template
-- [ ] Add a `tsc --noEmit` + lint CI gate
+- [x] Add a `tsc --noEmit` + lint CI gate. **This pass:** GitHub Action runs `tsc` + Vitest (no lint config yet).
 
 **Definition of Done:** the Android build is signable and ready for Google Play submission, has music, meets the Android release scorecard, and a fresh player's first 10 minutes feel materially more polished than today's build.
 
@@ -234,11 +267,10 @@ Six delivery sprints plus a short Sprint 0. Treat this as a **16-20 week roadmap
 
 ## 8. Immediate Next Steps (this week)
 
-1. **Run Sprint 0 now:** decide the name/identity, Android release target, and art pipeline; update the stale README and browser metadata to match.
-2. **Fix the `EventBus` leak first, in isolation**, with per-scene listener ownership rather than global removal. Verify with an instrumented five-transition scenario and Android manual QA.
-3. Complete the rest of Sprint 1's correctness/data-integrity list before moving to balance or new content.
-4. Build the balance scenario workbook before changing numbers; it is the baseline for every subsequent tuning decision.
-5. Treat L1.5 plus one boss as the gate for level expansion. Do not commit to L7-L10 until that vertical slice passes playtest and target-device performance checks.
+1. **QA the restart path:** start → surrender/retry → next level five times; confirm gold/lives/wave/hero HP HUD stay correct. This was the last remaining EventBus leak (UIScene).
+2. **Android backgrounding:** win a level, immediately send the app to background, kill it, confirm stars/unlock persist.
+3. Cryo T1 slow is now readable (inspector + build card). Remaining Sprint 2 feel-check: Headshot in a real match.
+4. Do **not** start L1.5 / Tiled until (1) is green on a device.
 
 ---
 

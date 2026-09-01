@@ -3,8 +3,6 @@ import { LevelData, LEVELS_CONFIG } from './levelsConfig';
 
 export interface DailyChallengeData {
   dateStr: string;
-  name: string;
-  description: string;
   baseLevelId: number;
   levelData: LevelData;
   modifiers: TacticalModifier[];
@@ -109,8 +107,6 @@ export function getDailyChallenge(dateStr?: string): DailyChallengeData {
 
   return {
     dateStr: targetDate,
-    name: `Desafio Diário: ${targetDate}`,
-    description: `Operação tática especial com modificadores climáticos e de regras.`,
     baseLevelId: baseLevel.id,
     levelData: levelDataCopy,
     modifiers: selectedModifiers,

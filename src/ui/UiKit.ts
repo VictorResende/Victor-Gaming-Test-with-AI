@@ -260,6 +260,36 @@ export function hudStyle(
   return uiText(color, size, { fontStyle: '700', ...extra });
 }
 
+export function addModalClose(
+  scene: Phaser.Scene,
+  x: number,
+  y: number,
+  onClick: () => void
+): Phaser.GameObjects.Container {
+  const closeBtn = scene.add.container(x, y);
+  closeBtn.add(scene.add.text(0, 0, '✕', hudStyle('18px', UI.text.muted)).setOrigin(0.5));
+  bindControl(closeBtn, 36, 36, onClick);
+  return closeBtn;
+}
+
+export function createDimModal(
+  scene: Phaser.Scene,
+  depth: number,
+  panelW: number,
+  panelH: number,
+  opts?: { stroke?: number; overlayAlpha?: number }
+): Phaser.GameObjects.Container {
+  const { width, height } = scene.scale;
+  const root = scene.add.container(width / 2, height / 2);
+  root.setDepth(depth);
+  const overlay = scene.add.rectangle(0, 0, width, height, 0x000000, opts?.overlayAlpha ?? 0.82);
+  overlay.setInteractive();
+  const box = scene.add.graphics();
+  fillPanel(box, -panelW / 2, -panelH / 2, panelW, panelH, 16, { alpha: 0.98, stroke: opts?.stroke });
+  root.add([overlay, box]);
+  return root;
+}
+
 export function addScreenTitle(
   scene: Phaser.Scene,
   x: number,

@@ -1,7 +1,7 @@
 import { WaveData, WaveEnemyGroup, Point } from '../config/levelsConfig';
-import { Enemy, EliteAffix } from '../entities/Enemy';
+import { Enemy } from '../entities/Enemy';
 import { EventBus, GameEvents } from '../core/EventBus';
-import { EnemyType, GAME_CONSTANTS, TacticalModifier } from '../core/Constants';
+import { EliteAffix, EnemyType, GAME_CONSTANTS, TacticalModifier } from '../core/Constants';
 import { EconomyManager } from './EconomyManager';
 import { SaveManager } from './SaveManager';
 import { generateBossRushEndlessWave } from '../config/bossRushConfig';
@@ -171,10 +171,10 @@ export class WaveManager {
             const waveNum = this.getCurrentWaveNumber();
             // Afixos disponíveis aumentam com ondas avançadas
             const affixes: EliteAffix[] = waveNum >= 15
-              ? ['FAST', 'REGENERATING', 'ARMORED']
+              ? [EliteAffix.FAST, EliteAffix.REGENERATING, EliteAffix.ARMORED]
               : waveNum >= 8
-                ? ['FAST', 'REGENERATING']
-                : ['FAST'];
+                ? [EliteAffix.FAST, EliteAffix.REGENERATING]
+                : [EliteAffix.FAST];
             const chosen = affixes[Math.floor(Math.random() * affixes.length)];
             enemy.applyEliteAffix(chosen);
           }
@@ -202,7 +202,7 @@ export class WaveManager {
             if (!alreadyClaimed) {
               const rewardStars = waveNumber >= 50 ? 5 : (waveNumber >= 30 ? 4 : 3);
               save.claimEndlessMilestone(waveNumber, rewardStars);
-              EventBus.emit('ENDLESS_MILESTONE_REACHED', {
+              EventBus.emit(GameEvents.SURVIVAL_MILESTONE_REACHED, {
                 wave: waveNumber,
                 stars: rewardStars
               });

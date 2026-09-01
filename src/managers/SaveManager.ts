@@ -1,66 +1,10 @@
 import { Preferences } from '@capacitor/preferences';
 import { LEVELS_CONFIG } from '../config/levelsConfig';
+import { RELICS_CONFIG } from '../config/relicsConfig';
+import { EventBus, GameEvents } from '../core/EventBus';
+import { DEFAULT_SAVE, GameSaveData, mergeLoadedSave } from './saveData';
 
-export interface GameSaveData {
-  unlockedLevels: number[];
-  levelStars: Record<number, number>; // levelId -> stars (1-3)
-  highScores: Record<number, number>;
-  unlockedTechs: string[];
-  totalStarsEarned: number;
-  availableStars: number;
-  achievements: string[];
-  settings: {
-    sfxEnabled: boolean;
-    musicEnabled: boolean;
-    hapticsEnabled: boolean;
-    language: 'pt' | 'en';
-    sfxVolume: number;
-    musicVolume: number;
-    highContrast: boolean;
-  };
-  unlockedChips: string[];
-  unlockedHeroPerks: string[];
-  unlockedRelics: string[];
-  equippedRelics: string[];
-  dailyChallengeCompletedDate?: string;
-  dailyHighScores: Record<string, number>;
-  bossRushBestWave: number;
-  bossRushHighScore: number;
-  endlessBestWave: number;
-  endlessHighScore: number;
-  endlessMilestonesClaimed: number[];
-  lifetimeKills: number;
-}
-
-const DEFAULT_SAVE: GameSaveData = {
-  unlockedLevels: [1],
-  levelStars: {},
-  highScores: {},
-  unlockedTechs: [],
-  totalStarsEarned: 0,
-  availableStars: 0,
-  achievements: [],
-  settings: {
-    sfxEnabled: true,
-    musicEnabled: true,
-    hapticsEnabled: true,
-    language: 'pt',
-    sfxVolume: 1.0,
-    musicVolume: 0.8,
-    highContrast: false
-  },
-  unlockedChips: ['CRITICAL_STRIKE', 'CHAIN_RICOCHET', 'ARMOR_PIERCE', 'CRYO_BLAST'],
-  unlockedHeroPerks: [],
-  unlockedRelics: ['kings_crown', 'dragonfire_flask', 'holy_grail', 'arcane_hourglass', 'elven_brooch'],
-  equippedRelics: ['kings_crown', 'holy_grail', 'arcane_hourglass'],
-  dailyHighScores: {},
-  bossRushBestWave: 0,
-  bossRushHighScore: 0,
-  endlessBestWave: 0,
-  endlessHighScore: 0,
-  endlessMilestonesClaimed: [],
-  lifetimeKills: 0
-};
+export type { GameSaveData };
 
 const STORAGE_KEY = 'tower_defense_save_v1';
 
@@ -69,6 +13,7 @@ export class SaveManager {
   private data: GameSaveData = { ...DEFAULT_SAVE, settings: { ...DEFAULT_SAVE.settings } };
   private isLoaded = false;
   private persistQueue: Promise<void> = Promise.resolve();
+  private flushHooksBound = false;
 
   public static getInstance(): SaveManager {
     if (!SaveManager.instance) {
@@ -100,22 +45,22 @@ export class SaveManager {
       }
     }
     this.isLoaded = true;
+    this.bindFlushHooks();
     return this.data;
   }
 
   private applyLoaded(parsed: Partial<GameSaveData>): void {
-    this.data = {
-      ...DEFAULT_SAVE,
-      ...parsed,
-      settings: { ...DEFAULT_SAVE.settings, ...(parsed.settings || {}) },
-      unlockedHeroPerks: parsed.unlockedHeroPerks || [],
-      unlockedRelics: parsed.unlockedRelics || [...DEFAULT_SAVE.unlockedRelics],
-      equippedRelics: parsed.equippedRelics || [...DEFAULT_SAVE.equippedRelics],
-      endlessBestWave: parsed.endlessBestWave ?? 0,
-      endlessHighScore: parsed.endlessHighScore ?? 0,
-      endlessMilestonesClaimed: parsed.endlessMilestonesClaimed || [],
-      lifetimeKills: parsed.lifetimeKills ?? 0
-    };
+    this.data = mergeLoadedSave(parsed);
+  }
+
+  private bindFlushHooks(): void {
+    if (this.flushHooksBound || typeof document === 'undefined') return;
+    this.flushHooksBound = true;
+    const flush = () => { void this.flush(); };
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') flush();
+    });
+    window.addEventListener('pagehide', flush);
   }
 
   public save(): Promise<void> {
@@ -161,7 +106,12 @@ export class SaveManager {
       this.data.unlockedLevels.push(nextLevel);
     }
 
-    this.save();
+    const relicReward = Object.values(RELICS_CONFIG).find(r => r.unlockLevelId === levelId);
+    if (relicReward && this.unlockRelic(relicReward.id)) {
+      EventBus.emit(GameEvents.RELIC_UNLOCKED, relicReward);
+    } else {
+      this.save();
+    }
   }
 
   public recordKill(): number {
@@ -361,6 +311,11 @@ export class SaveManager {
 
   public setHighContrast(enabled: boolean): void {
     this.data.settings.highContrast = enabled;
+    this.save();
+  }
+
+  public markOnboardingSeen(): void {
+    this.data.settings.seenOnboarding = true;
     this.save();
   }
 }

@@ -82,12 +82,12 @@ export class HeroTalentsScene extends Phaser.Scene {
     });
 
     const icon = this.add.text(-w / 2 + 28, -h / 2 + 28, node.icon, { fontSize: '22px' }).setOrigin(0.5);
-    const title = this.add.text(-w / 2 + 48, -h / 2 + 28, node.name, uiText(
+    const title = this.add.text(-w / 2 + 48, -h / 2 + 28, t(node.nameKey), uiText(
       isUnlocked ? UI.text.success : (canAfford ? UI.text.amber : UI.text.muted),
       '14px',
       { fontStyle: '700' }
     )).setOrigin(0, 0.5);
-    const desc = this.add.text(-w / 2 + 16, 8, node.description, uiText(UI.text.muted, '11px', { wordWrap: { width: w - 32 } })).setOrigin(0, 0.5);
+    const desc = this.add.text(-w / 2 + 16, 8, t(node.descKey), uiText(UI.text.muted, '11px', { wordWrap: { width: w - 32 } })).setOrigin(0, 0.5);
     const cta = this.add.text(0, h / 2 - 22, isUnlocked ? `✓ ${t('unlocked')}` : t('unlock', { cost: node.starCost }), uiText(
       isUnlocked ? UI.text.success : (canAfford ? UI.text.ink : UI.text.faint),
       '12px',

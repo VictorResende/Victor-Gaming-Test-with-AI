@@ -38,6 +38,26 @@ export class ModChip {
     return { finalDamage, ignoreArmor };
   }
 
+  public applyToHit(baseDamage: number, target?: Enemy, pierceArmor = false): {
+    damage: number;
+    isCrit: boolean;
+    ignoreArmor: boolean;
+  } {
+    let damage = baseDamage;
+    let isCrit = false;
+    const crit = this.checkCritical();
+    if (crit.isCrit) {
+      isCrit = true;
+      damage *= crit.multiplier;
+    }
+    const mod = this.modifyDamage(damage, target);
+    return {
+      damage: mod.finalDamage,
+      isCrit,
+      ignoreArmor: pierceArmor || mod.ignoreArmor
+    };
+  }
+
   public applyOnHitEffects(
     scene: Phaser.Scene,
     hitX: number,

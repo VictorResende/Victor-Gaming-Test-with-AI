@@ -1,23 +1,10 @@
 import Phaser from 'phaser';
+import { BoundBus } from './BoundBus';
+
+export { BoundBus };
+export type { BusLike } from './BoundBus';
 
 export const EventBus = new Phaser.Events.EventEmitter();
-
-type BusHandler = Function;
-
-/** Scene-scoped EventBus subscriptions that can be removed without `removeAllListeners()`. */
-export class BoundBus {
-  private bindings: Array<{ event: string; fn: BusHandler }> = [];
-
-  public on(event: string, fn: BusHandler): void {
-    EventBus.on(event, fn);
-    this.bindings.push({ event, fn });
-  }
-
-  public offAll(): void {
-    this.bindings.forEach(({ event, fn }) => EventBus.off(event, fn));
-    this.bindings = [];
-  }
-}
 
 export const GameEvents = {
   GOLD_CHANGED: 'GOLD_CHANGED',
@@ -52,6 +39,7 @@ export const GameEvents = {
   SHRINE_ACTIVATED: 'SHRINE_ACTIVATED',
   WEATHER_CHANGED: 'WEATHER_CHANGED',
   DRAGON_AIRSTRIKE: 'DRAGON_AIRSTRIKE',
-  SURVIVAL_MILESTONE_REACHED: 'SURVIVAL_MILESTONE_REACHED'
+  SURVIVAL_MILESTONE_REACHED: 'SURVIVAL_MILESTONE_REACHED',
+  RELIC_UNLOCKED: 'RELIC_UNLOCKED',
+  ENEMY_INSPECTED: 'ENEMY_INSPECTED'
 };
-

@@ -1,4 +1,6 @@
-import { DamageType, EnemyType, HeroAbilityId, HeroClass, SpellType, TowerType } from '../core/Constants';
+import { DamageType, EnemyType, HeroAbilityId, HeroClass, SpellType, TowerBranchId, TowerType } from '../core/Constants';
+import type { I18nKey } from '../i18n/locales';
+import { t } from '../i18n/locales';
 
 export interface TowerLevelData {
   level: number;
@@ -14,10 +16,10 @@ export interface TowerLevelData {
 }
 
 export interface Tier4BranchData extends TowerLevelData {
-  branchId: string;
+  branchId: TowerBranchId;
   nameKey: string;
   titleKey: string;
-  description: string;
+  descKey: I18nKey;
   accentColor: number;
   turretTextureKey: string;
   projectileTextureKey?: string;
@@ -31,7 +33,7 @@ export interface TowerConfigData {
   damageType: DamageType;
   baseColor: number;
   accentColor: number;
-  description: string;
+  descKey: I18nKey;
   levels: TowerLevelData[];
   tier4Branches?: [Tier4BranchData, Tier4BranchData];
 }
@@ -44,7 +46,7 @@ export const TOWERS_CONFIG: Record<TowerType, TowerConfigData> = {
     damageType: DamageType.PHYSICAL,
     baseColor: 0x475569,
     accentColor: 0x38bdf8,
-    description: 'Balista de tiro rápido que dispara virotes de precisão contra hordas invasoras.',
+    descKey: 'gatlingDesc',
     levels: [
       { level: 1, damage: 15, range: 160, fireRate: 2.5, upgradeCost: 120 },
       { level: 2, damage: 28, range: 185, fireRate: 3.2, upgradeCost: 220 },
@@ -53,10 +55,10 @@ export const TOWERS_CONFIG: Record<TowerType, TowerConfigData> = {
     tier4Branches: [
       {
         level: 4,
-        branchId: 'gatling_vulcan',
+        branchId: TowerBranchId.GATLING_VULCAN,
         nameKey: 'branchVulcanName',
         titleKey: 'branchVulcanTitle',
-        description: 'Balista real automatizada com cadência insana de virotes perfurantes encantados.',
+        descKey: 'branchVulcanDesc',
         damage: 38,
         range: 225,
         fireRate: 10.0,
@@ -67,10 +69,10 @@ export const TOWERS_CONFIG: Record<TowerType, TowerConfigData> = {
       },
       {
         level: 4,
-        branchId: 'gatling_sniper',
+        branchId: TowerBranchId.GATLING_SNIPER,
         nameKey: 'branchSniperName',
         titleKey: 'branchSniperTitle',
-        description: 'Arco longo sombrio com disparos espectrais de alcance extremo que perfuram armaduras.',
+        descKey: 'branchSniperDesc',
         damage: 320,
         range: 380,
         fireRate: 1.0,
@@ -88,7 +90,7 @@ export const TOWERS_CONFIG: Record<TowerType, TowerConfigData> = {
     damageType: DamageType.PHYSICAL,
     baseColor: 0x334155,
     accentColor: 0xf97316,
-    description: 'Catapulta de bombardeio pesado com pedregulhos explosivos e dano em área (AoE).',
+    descKey: 'cannonDesc',
     levels: [
       { level: 1, damage: 55, range: 190, fireRate: 0.8, splashRadius: 75, upgradeCost: 180 },
       { level: 2, damage: 110, range: 220, fireRate: 0.95, splashRadius: 95, upgradeCost: 300 },
@@ -97,10 +99,10 @@ export const TOWERS_CONFIG: Record<TowerType, TowerConfigData> = {
     tier4Branches: [
       {
         level: 4,
-        branchId: 'cannon_missiles',
+        branchId: TowerBranchId.CANNON_MISSILES,
         nameKey: 'branchMissilesName',
         titleKey: 'branchMissilesTitle',
-        description: 'Frascos de fogo grego alquímico teleguiados com alta velocidade e queima em área.',
+        descKey: 'branchMissilesDesc',
         damage: 240,
         range: 280,
         fireRate: 1.6,
@@ -112,10 +114,10 @@ export const TOWERS_CONFIG: Record<TowerType, TowerConfigData> = {
       },
       {
         level: 4,
-        branchId: 'cannon_nuclear',
+        branchId: TowerBranchId.CANNON_NUCLEAR,
         nameKey: 'branchNuclearName',
         titleKey: 'branchNuclearTitle',
-        description: 'Morteiro de magma devastador com raio de explosão vulcânica e queima de cinzas ardentes.',
+        descKey: 'branchNuclearDesc',
         damage: 600,
         range: 320,
         fireRate: 0.65,
@@ -130,23 +132,23 @@ export const TOWERS_CONFIG: Record<TowerType, TowerConfigData> = {
   [TowerType.CRYO]: {
     type: TowerType.CRYO,
     nameKey: 'cryoName',
-    cost: 140,
+    cost: 120,
     damageType: DamageType.FROST,
     baseColor: 0x1e293b,
     accentColor: 0x06b6d4,
-    description: 'Santuário elemental de gelo que emite pulsações gélidas para desacelerar e ferir invasores.',
+    descKey: 'cryoDesc',
     levels: [
-      { level: 1, damage: 10, range: 140, fireRate: 1.2, slowFactor: 0.5, slowDuration: 2500, upgradeCost: 150 },
+      { level: 1, damage: 14, range: 145, fireRate: 1.4, slowFactor: 0.5, slowDuration: 2500, upgradeCost: 150 },
       { level: 2, damage: 22, range: 165, fireRate: 1.4, slowFactor: 0.65, slowDuration: 3200, upgradeCost: 260 },
       { level: 3, damage: 45, range: 195, fireRate: 1.6, slowFactor: 0.8, slowDuration: 4000, upgradeCost: 0 }
     ],
     tier4Branches: [
       {
         level: 4,
-        branchId: 'cryo_blizzard',
+        branchId: TowerBranchId.CRYO_BLIZZARD,
         nameKey: 'branchBlizzardName',
         titleKey: 'branchBlizzardTitle',
-        description: 'Tempestade de neve perpétua em ampla área desacelerando em 85% os monstros invasores.',
+        descKey: 'branchBlizzardDesc',
         damage: 80,
         range: 240,
         fireRate: 2.2,
@@ -160,10 +162,10 @@ export const TOWERS_CONFIG: Record<TowerType, TowerConfigData> = {
       },
       {
         level: 4,
-        branchId: 'cryo_zero',
+        branchId: TowerBranchId.CRYO_ZERO,
         nameKey: 'branchZeroName',
         titleKey: 'branchZeroTitle',
-        description: 'Monólito de Zero Cósmico que aprisiona os monstros em blocos de gelo estilhaçante.',
+        descKey: 'branchZeroDesc',
         damage: 200,
         range: 215,
         fireRate: 1.3,
@@ -183,7 +185,7 @@ export const TOWERS_CONFIG: Record<TowerType, TowerConfigData> = {
     damageType: DamageType.LASER,
     baseColor: 0x312e81,
     accentColor: 0xa855f7,
-    description: 'Torre Arcana que canaliza um feixe contínuo de pura magia capaz de derreter armaduras.',
+    descKey: 'laserDesc',
     levels: [
       { level: 1, damage: 4, range: 175, fireRate: 15, laserDPS: 60, upgradeCost: 210 },
       { level: 2, damage: 8, range: 205, fireRate: 15, laserDPS: 120, upgradeCost: 340 },
@@ -192,10 +194,10 @@ export const TOWERS_CONFIG: Record<TowerType, TowerConfigData> = {
     tier4Branches: [
       {
         level: 4,
-        branchId: 'laser_orbital',
+        branchId: TowerBranchId.LASER_ORBITAL,
         nameKey: 'branchOrbitalName',
         titleKey: 'branchOrbitalTitle',
-        description: 'Feixe desintegrador do Vazio com 520 DPS capaz de incinerar dragões e chefes em segundos.',
+        descKey: 'branchOrbitalDesc',
         damage: 30,
         range: 280,
         fireRate: 18,
@@ -206,10 +208,10 @@ export const TOWERS_CONFIG: Record<TowerType, TowerConfigData> = {
       },
       {
         level: 4,
-        branchId: 'laser_prism',
+        branchId: TowerBranchId.LASER_PRISM,
         nameKey: 'branchPrismName',
         titleKey: 'branchPrismTitle',
-        description: 'Prisma de Mana arcano que divide o feixe em até 4 alvos simultâneos em cadeia.',
+        descKey: 'branchPrismDesc',
         damage: 18,
         range: 250,
         fireRate: 18,
@@ -228,7 +230,7 @@ export const TOWERS_CONFIG: Record<TowerType, TowerConfigData> = {
     damageType: DamageType.ELECTRIC,
     baseColor: 0x1e1b4b,
     accentColor: 0xeab308,
-    description: 'Santuário do Trovão com descargas celestiais em arco elétrico entre múltiplos monstros.',
+    descKey: 'teslaDesc',
     levels: [
       { level: 1, damage: 40, range: 150, fireRate: 1.0, chainCount: 3, upgradeCost: 250 },
       { level: 2, damage: 85, range: 175, fireRate: 1.2, chainCount: 4, upgradeCost: 380 },
@@ -237,13 +239,13 @@ export const TOWERS_CONFIG: Record<TowerType, TowerConfigData> = {
     tier4Branches: [
       {
         level: 4,
-        branchId: 'tesla_storm',
+        branchId: TowerBranchId.TESLA_STORM,
         nameKey: 'branchStormName',
         titleKey: 'branchStormTitle',
-        description: 'Ira dos deuses do trovão com relâmpagos colossais que saltam por até 10 monstros.',
+        descKey: 'branchStormDesc',
         damage: 280,
         range: 235,
-        fireRate: 1.6,
+        fireRate: 1.15,
         chainCount: 10,
         upgradeCost: 550,
         accentColor: 0x38bdf8,
@@ -251,10 +253,10 @@ export const TOWERS_CONFIG: Record<TowerType, TowerConfigData> = {
       },
       {
         level: 4,
-        branchId: 'tesla_plasma',
+        branchId: TowerBranchId.TESLA_PLASMA,
         nameKey: 'branchPlasmaName',
         titleKey: 'branchPlasmaTitle',
-        description: 'Templo da Tempestade com esferas concentradas de eletricidade e explosões em área.',
+        descKey: 'branchPlasmaDesc',
         damage: 480,
         range: 220,
         fireRate: 1.1,
@@ -273,7 +275,7 @@ export const TOWERS_CONFIG: Record<TowerType, TowerConfigData> = {
     damageType: DamageType.ELECTRIC,
     baseColor: 0x312e81,
     accentColor: 0x38bdf8,
-    description: 'Torre da Bruxa Oracular que revela inimigos ocultos e lança orbes elétricos em pequenas áreas.',
+    descKey: 'witchDesc',
     levels: [
       { level: 1, damage: 34, range: 175, fireRate: 0.95, splashRadius: 46, upgradeCost: 210 },
       { level: 2, damage: 68, range: 205, fireRate: 1.1, splashRadius: 58, upgradeCost: 330 },
@@ -284,7 +286,7 @@ export const TOWERS_CONFIG: Record<TowerType, TowerConfigData> = {
 
 export interface EnemyConfigData {
   type: EnemyType;
-  name: string;
+  nameKey: I18nKey;
   maxHp: number;
   speed: number;
   rewardGold: number;
@@ -304,10 +306,14 @@ export interface EnemyConfigData {
   resistances: Partial<Record<DamageType, number>>; // Multiplicador de dano (0.5 = toma 50% de dano, 1.5 = toma 150%)
 }
 
+export function enemyDisplayName(config: Pick<EnemyConfigData, 'nameKey'>): string {
+  return t(config.nameKey);
+}
+
 export const ENEMIES_CONFIG: Record<EnemyType, EnemyConfigData> = {
   [EnemyType.SCOUT]: {
     type: EnemyType.SCOUT,
-    name: 'Batedor Goblin',
+    nameKey: 'enemyScout',
     maxHp: 75,
     speed: 125,
     rewardGold: 12,
@@ -323,7 +329,7 @@ export const ENEMIES_CONFIG: Record<EnemyType, EnemyConfigData> = {
   },
   [EnemyType.SOLDIER]: {
     type: EnemyType.SOLDIER,
-    name: 'Guerreiro Orc',
+    nameKey: 'enemySoldier',
     maxHp: 180,
     speed: 80,
     rewardGold: 22,
@@ -339,7 +345,7 @@ export const ENEMIES_CONFIG: Record<EnemyType, EnemyConfigData> = {
   },
   [EnemyType.TANK]: {
     type: EnemyType.TANK,
-    name: 'Golem de Magma',
+    nameKey: 'enemyTank',
     maxHp: 520,
     speed: 48,
     rewardGold: 45,
@@ -355,7 +361,7 @@ export const ENEMIES_CONFIG: Record<EnemyType, EnemyConfigData> = {
   },
   [EnemyType.FLYER]: {
     type: EnemyType.FLYER,
-    name: 'Gárgula Alada',
+    nameKey: 'enemyFlyer',
     maxHp: 130,
     speed: 105,
     rewardGold: 25,
@@ -372,7 +378,7 @@ export const ENEMIES_CONFIG: Record<EnemyType, EnemyConfigData> = {
   },
   [EnemyType.BOSS]: {
     type: EnemyType.BOSS,
-    name: 'Dragão Ancião (Chefe)',
+    nameKey: 'enemyBoss',
     maxHp: 2800,
     speed: 36,
     rewardGold: 250,
@@ -390,7 +396,7 @@ export const ENEMIES_CONFIG: Record<EnemyType, EnemyConfigData> = {
   },
   [EnemyType.CARRIER]: {
     type: EnemyType.CARRIER,
-    name: 'Necromante das Trevas',
+    nameKey: 'enemyCarrier',
     maxHp: 850,
     speed: 42,
     rewardGold: 60,
@@ -408,7 +414,7 @@ export const ENEMIES_CONFIG: Record<EnemyType, EnemyConfigData> = {
   },
   [EnemyType.SHIELDER]: {
     type: EnemyType.SHIELDER,
-    name: 'Sacerdote Protetor',
+    nameKey: 'enemyShielder',
     maxHp: 520,
     speed: 52,
     rewardGold: 50,
@@ -427,7 +433,7 @@ export const ENEMIES_CONFIG: Record<EnemyType, EnemyConfigData> = {
   },
   [EnemyType.STEALTH]: {
     type: EnemyType.STEALTH,
-    name: 'Assassino das Sombras',
+    nameKey: 'enemyStealth',
     maxHp: 220,
     speed: 110,
     rewardGold: 35,
@@ -445,7 +451,7 @@ export const ENEMIES_CONFIG: Record<EnemyType, EnemyConfigData> = {
   },
   [EnemyType.MINI_DRONE]: {
     type: EnemyType.MINI_DRONE,
-    name: 'Servo Esqueleto',
+    nameKey: 'enemyDrone',
     maxHp: 55,
     speed: 145,
     rewardGold: 6,
@@ -463,7 +469,7 @@ export const ENEMIES_CONFIG: Record<EnemyType, EnemyConfigData> = {
   },
   [EnemyType.SHAMAN]: {
     type: EnemyType.SHAMAN,
-    name: 'Xamã Goblin Curandeiro',
+    nameKey: 'enemyShaman',
     maxHp: 380,
     speed: 56,
     rewardGold: 40,
@@ -611,10 +617,10 @@ export const HEROES_CONFIG: Record<HeroClass, HeroConfigData> = {
         id: HeroAbilityId.HEADSHOT,
         nameKey: 'headshot',
         descKey: 'headshotDesc',
-        cooldownMs: 14000,
+        cooldownMs: 18000,
         iconTexture: 'ability_headshot',
         range: 400,
-        damage: 600,
+        damage: 480,
         durationMs: 1500
       },
       {

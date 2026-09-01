@@ -4,90 +4,15 @@ import { HEROES_CONFIG, HeroAbilityConfigData, HeroConfigData } from '../config/
 import { Enemy } from './Enemy';
 import { Tower } from './Tower';
 import { Projectile } from './Projectile';
+import { MiniTurret } from './MiniTurret';
 import { AudioManager } from '../managers/AudioManager';
 import { HapticsManager } from '../managers/HapticsManager';
 import { SaveManager } from '../managers/SaveManager';
 import { EventBus, GameEvents } from '../core/EventBus';
 import { t } from '../i18n/locales';
+import { attachComicSpeechBubble, SpeechBubbleType } from './HeroSpeech';
 
-export class MiniTurret extends Phaser.GameObjects.Container {
-  public isAlive = true;
-  private lifeTimerMs: number;
-  private damage: number;
-  private range: number;
-  private fireCooldownMs = 0;
-  private fireRate = 3.5; // Disparos por segundo
-  private baseSprite: Phaser.GameObjects.Sprite;
-  private rangeGraphics: Phaser.GameObjects.Graphics;
-
-  constructor(scene: Phaser.Scene, x: number, y: number, durationMs: number, damage: number, range = 160) {
-    super(scene, x, y);
-    this.lifeTimerMs = durationMs;
-    this.damage = damage;
-    this.range = range;
-
-    this.baseSprite = scene.add.sprite(0, 0, 'turret_mini_drone');
-    this.add(this.baseSprite);
-
-    this.rangeGraphics = scene.add.graphics();
-    this.add(this.rangeGraphics);
-
-    scene.add.existing(this);
-
-    // Efeito de spawn
-    this.setScale(0.2);
-    scene.tweens.add({
-      targets: this,
-      scaleX: 1,
-      scaleY: 1,
-      duration: 200,
-      ease: 'Back.easeOut'
-    });
-  }
-
-  public updateTurret(deltaMs: number, speedMultiplier: number, enemies: Enemy[], projectilesPool?: { get: () => Projectile }): void {
-    if (!this.isAlive) return;
-
-    const effectiveDelta = deltaMs * speedMultiplier;
-    this.lifeTimerMs -= effectiveDelta;
-    this.fireCooldownMs = Math.max(0, this.fireCooldownMs - effectiveDelta);
-
-    if (this.lifeTimerMs <= 0) {
-      this.destroyTurret();
-      return;
-    }
-
-    // Procura inimigo no alcance
-    const target = enemies.find(e => e.isAlive && Phaser.Math.Distance.Between(this.x, this.y, e.x, e.y) <= this.range);
-    if (target) {
-      const angle = Phaser.Math.Angle.Between(this.x, this.y, target.x, target.y);
-      this.baseSprite.rotation = angle + Math.PI / 2;
-
-      if (this.fireCooldownMs <= 0) {
-        this.fireCooldownMs = 1000 / this.fireRate;
-        if (projectilesPool) {
-          const proj = projectilesPool.get();
-          proj.fire(this.x, this.y, target, this.damage, DamageType.LASER, 'proj_bullet', 800);
-        } else {
-          target.takeDamage(this.damage, DamageType.LASER);
-        }
-        AudioManager.getInstance().playGatling();
-      }
-    }
-  }
-
-  public destroyTurret(): void {
-    this.isAlive = false;
-    this.scene.tweens.add({
-      targets: this,
-      scaleX: 0,
-      scaleY: 0,
-      alpha: 0,
-      duration: 200,
-      onComplete: () => this.destroy()
-    });
-  }
-}
+export { MiniTurret } from './MiniTurret';
 
 export class Hero extends Phaser.GameObjects.Container {
   public heroClass: HeroClass;
@@ -619,121 +544,19 @@ export class Hero extends Phaser.GameObjects.Container {
   public showComicSpeechBubble(
     message: string,
     durationMs = 2500,
-    bubbleType: 'normal' | 'shout' | 'crit' = 'normal'
+    bubbleType: SpeechBubbleType = 'normal'
   ): void {
-    if (this.activeSpeechBubble) {
-      this.activeSpeechBubble.destroy();
-      this.activeSpeechBubble = null;
-    }
-
-    const bubbleContainer = this.scene.add.container(0, -68);
-
-    const textColor = bubbleType === 'crit' ? '#991b1b' : (bubbleType === 'shout' ? '#1e3a8a' : '#0f172a');
-    const bubbleText = this.scene.add.text(0, -2, message.toUpperCase(), {
-      fontFamily: 'Impact, Arial Black, Trebuchet MS, sans-serif',
-      fontSize: '12px',
-      fontStyle: 'bold',
-      color: textColor,
-      align: 'center',
-      letterSpacing: 0.5
-    }).setOrigin(0.5);
-
-    const padX = 14;
-    const padY = 8;
-    const bw = Math.max(76, bubbleText.width + padX * 2);
-    const bh = Math.max(28, bubbleText.height + padY * 2);
-
-    const bubbleGfx = this.scene.add.graphics();
-
-    // Sombra do balão estilo quadrinhos
-    bubbleGfx.fillStyle(0x000000, 0.35);
-    bubbleGfx.fillRoundedRect(-bw / 2 + 2, -bh / 2 + 3, bw, bh, 8);
-    bubbleGfx.fillTriangle(
-      -5 + 2, bh / 2 + 3,
-      5 + 2, bh / 2 + 3,
-      -1 + 2, bh / 2 + 10 + 3
-    );
-
-    // Fundo do balão (Branco / Amarelo HQ)
-    const bgColor = bubbleType === 'crit' ? 0xfef9c3 : (bubbleType === 'shout' ? 0xffedd5 : 0xffffff);
-    bubbleGfx.fillStyle(bgColor, 1);
-    bubbleGfx.fillRoundedRect(-bw / 2, -bh / 2, bw, bh, 8);
-
-    // Ponta do balão apontando para a cabeça do herói
-    bubbleGfx.fillTriangle(
-      -6, bh / 2 - 1,
-      6, bh / 2 - 1,
-      -2, bh / 2 + 9
-    );
-
-    // Contorno preto grosso estilo Comic Book
-    bubbleGfx.lineStyle(2.5, 0x0f172a, 1);
-    bubbleGfx.strokeRoundedRect(-bw / 2, -bh / 2, bw, bh, 8);
-
-    // Linhas do contorno da ponta
-    bubbleGfx.lineBetween(-6, bh / 2 - 1, -2, bh / 2 + 9);
-    bubbleGfx.lineBetween(6, bh / 2 - 1, -2, bh / 2 + 9);
-    // Mascara a emenda superior da ponta
-    bubbleGfx.fillStyle(bgColor, 1);
-    bubbleGfx.fillRect(-5, bh / 2 - 2, 10, 3);
-
-    bubbleContainer.add([bubbleGfx, bubbleText]);
-    this.add(bubbleContainer);
-    this.activeSpeechBubble = bubbleContainer;
-
-    // Animação Pop-in de Cartoon (Scale 0.1 -> 1.18 -> 1.0)
-    bubbleContainer.setScale(0.1);
-    bubbleContainer.setAlpha(0);
-
-    this.scene.tweens.add({
-      targets: bubbleContainer,
-      scaleX: 1.18,
-      scaleY: 1.18,
-      alpha: 1,
-      duration: 160,
-      ease: 'Back.easeOut',
-      onComplete: () => {
-        if (bubbleContainer.active) {
-          this.scene.tweens.add({
-            targets: bubbleContainer,
-            scaleX: 1.0,
-            scaleY: 1.0,
-            duration: 100,
-            ease: 'Sine.easeInOut'
-          });
-        }
+    this.activeSpeechBubble = attachComicSpeechBubble(
+      this,
+      this.scene,
+      this.activeSpeechBubble,
+      message,
+      durationMs,
+      bubbleType,
+      () => {
+        this.activeSpeechBubble = null;
       }
-    });
-
-    // Flutuação sutil de desenho animado
-    this.scene.tweens.add({
-      targets: bubbleContainer,
-      y: -73,
-      duration: 1200,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
-    });
-
-    // Auto Pop-out e destruição no final da duração
-    this.scene.time.delayedCall(Math.max(500, durationMs - 250), () => {
-      if (bubbleContainer.active) {
-        this.scene.tweens.add({
-          targets: bubbleContainer,
-          scaleX: 0.15,
-          scaleY: 0.15,
-          alpha: 0,
-          duration: 250,
-          ease: 'Back.easeIn',
-          onComplete: () => {
-            if (this.activeSpeechBubble === bubbleContainer) {
-              this.activeSpeechBubble = null;
-            }
-            bubbleContainer.destroy();
-          }
-        });
-      }
-    });
+    );
   }
 
   // Notificação de abate de Chefe
@@ -868,9 +691,11 @@ export class Hero extends Phaser.GameObjects.Container {
   }
 
   private executeCombatTurret(): void {
-    // Ignis: Obelisco Mágico Elemental
+    // Ignis: Obelisco Mágico Elemental — only one active turret at a time.
     AudioManager.getInstance().playBuild();
-    const duration = 15000 + (this.level * 1000);
+    this.activeTurrets.forEach(t => t.destroyTurret());
+    this.activeTurrets = [];
+    const duration = Math.min(18000, 12000 + (this.level * 800));
     const damage = 35 + (this.level * 5);
     const turret = new MiniTurret(this.scene, this.x, this.y, duration, damage);
     this.activeTurrets.push(turret);

@@ -8,6 +8,8 @@ export class AudioManager {
 
   private sfxGainNode: GainNode | null = null;
   private musicGainNode: GainNode | null = null;
+  private musicStarted = false;
+  private musicSources: OscillatorNode[] = [];
 
   public static getInstance(): AudioManager {
     if (!AudioManager.instance) {
@@ -742,5 +744,34 @@ export class AudioManager {
     snap.stop(t + 0.15);
     rumble.start(t + 0.05);
     rumble.stop(t + 0.8);
+  }
+
+  public ensureMusic(): void {
+    const ctx = this.initCtx();
+    if (!ctx || !this.musicGainNode || this.musicStarted) return;
+    this.musicStarted = true;
+
+    const pad = ctx.createOscillator();
+    const fifth = ctx.createOscillator();
+    const filter = ctx.createBiquadFilter();
+    const gain = ctx.createGain();
+
+    pad.type = 'sine';
+    fifth.type = 'triangle';
+    pad.frequency.setValueAtTime(110, ctx.currentTime);
+    fifth.frequency.setValueAtTime(165, ctx.currentTime);
+
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(420, ctx.currentTime);
+    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+
+    pad.connect(filter);
+    fifth.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.musicGainNode);
+
+    pad.start();
+    fifth.start();
+    this.musicSources.push(pad, fifth);
   }
 }

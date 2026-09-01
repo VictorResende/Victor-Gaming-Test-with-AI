@@ -1,7 +1,9 @@
+import type { I18nKey } from '../i18n/locales';
+
 export interface TechNode {
   id: string;
-  name: string;
-  description: string;
+  nameKey: I18nKey;
+  descKey: I18nKey;
   starCost: number;
   icon: string;
   effect: {
@@ -17,50 +19,50 @@ export interface TechNode {
 export const TECH_TREE_NODES: TechNode[] = [
   {
     id: 'starting_gold',
-    name: 'Cofre do Rei',
-    description: 'Comece todas as fases com +150 de Ouro imperial extra.',
+    nameKey: 'techGoldName',
+    descKey: 'techGoldDesc',
     starCost: 2,
     icon: '💰',
     effect: { extraGold: 150 }
   },
   {
     id: 'starting_lives',
-    name: 'Baluarte da Fortaleza',
-    description: 'Aumenta as vidas do reino em +5 corações de honra.',
+    nameKey: 'techLivesName',
+    descKey: 'techLivesDesc',
     starCost: 2,
     icon: '🛡️',
     effect: { extraLives: 5 }
   },
   {
     id: 'range_all',
-    name: 'Olho de Águia & Clarividência',
-    description: 'Aumenta o alcance de visão e disparo de todas as defesas em +15%.',
+    nameKey: 'techRangeName',
+    descKey: 'techRangeDesc',
     starCost: 3,
     icon: '🎯',
     effect: { rangeMultiplier: 1.15 }
   },
   {
     id: 'cost_discount',
-    name: 'Arquitetura Real',
-    description: 'Reduz o custo de construção de todas as torres em 10%.',
+    nameKey: 'techCostName',
+    descKey: 'techCostDesc',
     starCost: 3,
-    icon: '⚙️',
+    icon: '⚒️',
     effect: { costMultiplier: 0.9 }
   },
   {
     id: 'damage_all',
-    name: 'Encantamento de Lâminas & Runas',
-    description: 'Aumenta o poder de dano e impacto de todas as defesas em +20%.',
+    nameKey: 'techDamageName',
+    descKey: 'techDamageDesc',
     starCost: 4,
     icon: '⚡',
     effect: { damageMultiplier: 1.2 }
   },
   {
     id: 'spell_cd',
-    name: 'Canalização Arcana',
-    description: 'Reduz o tempo de recarga (cooldown) das magias e feitiços em 25%.',
+    nameKey: 'techSpellName',
+    descKey: 'techSpellDesc',
     starCost: 3,
-    icon: '🚀',
+    icon: '✨',
     effect: { cooldownMultiplier: 0.75 }
   }
 ];
