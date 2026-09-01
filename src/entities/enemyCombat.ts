@@ -55,5 +55,11 @@ export function livesLostOnLeak(isBoss: boolean, enemyType: EnemyType): number {
 }
 
 export function isBossEnemy(isBossFlag: boolean, enemyType: EnemyType): boolean {
-  return isBossFlag || enemyType === EnemyType.BOSS || enemyType === EnemyType.GOLEM_BOSS;
+  return (
+    isBossFlag ||
+    enemyType === EnemyType.BOSS ||
+    enemyType === EnemyType.GOLEM_BOSS ||
+    enemyType === EnemyType.FROST_GIANT_BOSS ||
+    enemyType === EnemyType.INFERNAL_BOSS
+  );
 }

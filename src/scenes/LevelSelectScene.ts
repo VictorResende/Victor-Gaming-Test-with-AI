@@ -61,20 +61,22 @@ export class LevelSelectScene extends Phaser.Scene {
     const relicsY = topModesY + 44;
     addGhostButton(this, width / 2, relicsY, t('relicsButton'), () => this.openRelicsModal(), 280, 36);
 
-    const cardWidth = Math.min(320, (this.safeBounds.safeWidth - 48) / 3);
-    const cardHeight = 145;
-    const colSpacing = (this.safeBounds.safeWidth - cardWidth * 3) / 2;
+    const cols = 4;
+    const cardWidth = Math.min(260, (this.safeBounds.safeWidth - 60) / cols);
+    const cardHeight = 135;
+    const colSpacing = (this.safeBounds.safeWidth - cardWidth * cols) / (cols - 1);
     const startX = this.safeBounds.left + cardWidth / 2;
-    const startY = relicsY + 96;
+    const startY = relicsY + 92;
     const rowSpacing = cardHeight + 12;
 
     const biomeIcons: Record<number, string> = {
-      1: '🌲', 7: '🌿', 2: '🪓', 3: '❄️', 4: '🌋', 5: '🔮', 6: '🐉'
+      1: '🌲', 7: '🌿', 2: '🪓', 3: '❄️', 4: '🌋', 5: '🔮', 6: '🐉',
+      8: '🏛️', 9: '🧊', 10: '🔥', 11: '👑'
     };
 
     LEVELS_CONFIG.forEach((level, index) => {
-      const col = index % 3;
-      const row = Math.floor(index / 3);
+      const col = index % cols;
+      const row = Math.floor(index / cols);
       this.createLevelCard(
         startX + col * (cardWidth + colSpacing),
         startY + row * rowSpacing,

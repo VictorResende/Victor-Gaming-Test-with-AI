@@ -97,15 +97,27 @@ export function openPauseModal(scene: Phaser.Scene, actions: PauseModalActions):
     save.save();
     actions.refresh();
   });
-  items.push(hapBtn);
+  const isRM = save.isReducedMotion();
+  const rmBtn = scene.add.container(0, 20);
+  const rmBg = scene.add.graphics();
+  paintGlassRect(rmBg, -110, -18, 220, 36, 12, isRM);
+  rmBtn.add([
+    rmBg,
+    scene.add.text(0, 0, `${t('reducedMotion')}: ${isRM ? t('reducedMotionOn') : t('reducedMotionOff')}`, hudStyle('12px', isRM ? UI.text.amber : UI.text.primary)).setOrigin(0.5)
+  ]);
+  bindControl(rmBtn, 220, 36, () => {
+    save.setReducedMotion(!isRM);
+    actions.refresh();
+  });
+  items.push(rmBtn);
 
-  items.push(addGhostButton(scene, 0, 20, t('bestiary'), () => actions.openBestiary(), 200, 40));
-  items.push(addPrimaryButton(scene, -160, 75, t('resume'), () => {
+  items.push(addGhostButton(scene, 0, 60, t('bestiary'), () => actions.openBestiary(), 200, 36));
+  items.push(addPrimaryButton(scene, -160, 110, t('resume'), () => {
     modal.destroy();
     actions.resume();
-  }, 150, 44));
-  items.push(addGhostButton(scene, 0, 75, t('restart'), () => actions.confirmRestart(), 150, 44));
-  items.push(addDangerButton(scene, 160, 75, t('surrender'), () => actions.confirmSurrender(), 150, 44));
+  }, 150, 40));
+  items.push(addGhostButton(scene, 0, 110, t('restart'), () => actions.confirmRestart(), 150, 40));
+  items.push(addDangerButton(scene, 160, 110, t('surrender'), () => actions.confirmSurrender(), 150, 40));
   items.push(addModalClose(scene, 250, -185, () => {
     modal.destroy();
     actions.resume();

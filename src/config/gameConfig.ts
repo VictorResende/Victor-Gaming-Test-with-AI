@@ -412,6 +412,42 @@ export const ENEMIES_CONFIG: Record<EnemyType, EnemyConfigData> = {
       [DamageType.ELECTRIC]: 1.2
     }
   },
+  [EnemyType.FROST_GIANT_BOSS]: {
+    type: EnemyType.FROST_GIANT_BOSS,
+    nameKey: 'enemyFrostGiantBoss',
+    maxHp: 2600,
+    speed: 30,
+    rewardGold: 230,
+    scoreValue: 1400,
+    armor: 0.35,
+    color: 0x38bdf8,
+    size: 44,
+    isBoss: true,
+    resistances: {
+      [DamageType.FROST]: 0.3,
+      [DamageType.FIRE]: 1.5,
+      [DamageType.PHYSICAL]: 0.7,
+      [DamageType.LASER]: 1.1
+    }
+  },
+  [EnemyType.INFERNAL_BOSS]: {
+    type: EnemyType.INFERNAL_BOSS,
+    nameKey: 'enemyInfernalBoss',
+    maxHp: 3100,
+    speed: 34,
+    rewardGold: 280,
+    scoreValue: 1600,
+    armor: 0.45,
+    color: 0xd97706,
+    size: 46,
+    isBoss: true,
+    resistances: {
+      [DamageType.FIRE]: 0.2,
+      [DamageType.FROST]: 1.5,
+      [DamageType.PHYSICAL]: 0.6,
+      [DamageType.ELECTRIC]: 1.1
+    }
+  },
   [EnemyType.CARRIER]: {
     type: EnemyType.CARRIER,
     nameKey: 'enemyCarrier',

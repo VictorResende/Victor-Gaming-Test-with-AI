@@ -8,7 +8,8 @@ describe('level copy', () => {
 
   it('titles campaign maps in Portuguese', () => {
     expect(levelTitle(LEVELS_CONFIG[0])).toContain('Floresta');
-    expect(levelBlurb(LEVELS_CONFIG[LEVELS_CONFIG.length - 1])).toContain('Dragão');
+    const level6 = LEVELS_CONFIG.find(l => l.id === 6)!;
+    expect(levelBlurb(level6)).toContain('Dragão');
   });
 
   it('switches map titles in English', () => {

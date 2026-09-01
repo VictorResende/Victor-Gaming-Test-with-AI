@@ -7,17 +7,19 @@ export enum DamageType {
 }
 
 export enum EnemyType {
-  SCOUT = 'SCOUT',           // Batedor Goblin (Goblin Scout)
-  SOLDIER = 'SOLDIER',       // Guerreiro Orc (Orc Warrior)
-  TANK = 'TANK',             // Golem de Magma (Magma Golem)
-  FLYER = 'FLYER',           // Gárgula Alada (Gargoyle)
-  BOSS = 'BOSS',             // Dragão Ancião (Elder Dragon)
-  GOLEM_BOSS = 'GOLEM_BOSS', // Guardião de Pedra (Stone Golem)
-  CARRIER = 'CARRIER',       // Necromante das Trevas (Necromancer)
-  SHIELDER = 'SHIELDER',     // Sacerdote Protetor (Shielder Priest)
-  STEALTH = 'STEALTH',       // Assassino das Sombras (Shadow Assassin)
-  MINI_DRONE = 'MINI_DRONE', // Servo Esqueleto (Skeleton Minion)
-  SHAMAN = 'SHAMAN'          // Xamã Goblin Curandeiro (Goblin Shaman Healer)
+  SCOUT = 'SCOUT',                 // Batedor Goblin (Goblin Scout)
+  SOLDIER = 'SOLDIER',             // Guerreiro Orc (Orc Warrior)
+  TANK = 'TANK',                   // Golem de Magma (Magma Golem)
+  FLYER = 'FLYER',                 // Gárgula Alada (Gargoyle)
+  BOSS = 'BOSS',                   // Dragão Ancião (Elder Dragon)
+  GOLEM_BOSS = 'GOLEM_BOSS',       // Guardião de Pedra (Stone Golem)
+  FROST_GIANT_BOSS = 'FROST_GIANT_BOSS', // Gigante de Gelo (Frost Colossus)
+  INFERNAL_BOSS = 'INFERNAL_BOSS', // Arquidemônio de Magma (Infernal Overlord)
+  CARRIER = 'CARRIER',             // Necromante das Trevas (Necromancer)
+  SHIELDER = 'SHIELDER',           // Sacerdote Protetor (Shielder Priest)
+  STEALTH = 'STEALTH',             // Assassino das Sombras (Shadow Assassin)
+  MINI_DRONE = 'MINI_DRONE',       // Servo Esqueleto (Skeleton Minion)
+  SHAMAN = 'SHAMAN'                // Xamã Goblin Curandeiro (Goblin Shaman Healer)
 }
 
 export enum EliteAffix {

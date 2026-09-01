@@ -512,13 +512,14 @@ export class MenuScene extends Phaser.Scene {
     const save = SaveManager.getInstance();
     const data = save.getData();
 
-    this.openModal(480, 430, t('settings'), (panel) => {
+    this.openModal(480, 480, t('settings'), (panel) => {
       const rows: Array<{ label: string; on: boolean; toggle: () => void }> = [
         {
           label: `${t('language')}: ${getLanguage().toUpperCase()}`,
-          on: getLanguage() === 'en',
+          on: true,
           toggle: () => {
-            const nextLang = getLanguage() === 'pt' ? 'en' : 'pt';
+            const current = getLanguage();
+            const nextLang = current === 'pt' ? 'en' : (current === 'en' ? 'es' : 'pt');
             setLanguage(nextLang);
             data.settings.language = nextLang;
             save.save();
@@ -556,6 +557,14 @@ export class MenuScene extends Phaser.Scene {
           }
         },
         {
+          label: t('reducedMotion'),
+          on: save.isReducedMotion(),
+          toggle: () => {
+            save.setReducedMotion(!save.isReducedMotion());
+            this.showSettingsModal();
+          }
+        },
+        {
           label: t('haptics'),
           on: data.settings.hapticsEnabled,
           toggle: () => {
@@ -567,7 +576,7 @@ export class MenuScene extends Phaser.Scene {
       ];
 
       rows.forEach((row, i) => {
-        panel.add(this.createSwitchRow(0, -130 + i * 58, row.label, row.on, row.toggle));
+        panel.add(this.createSwitchRow(0, -150 + i * 52, row.label, row.on, row.toggle));
       });
     });
   }

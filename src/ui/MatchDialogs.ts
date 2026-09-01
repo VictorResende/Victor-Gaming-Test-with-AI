@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { ENEMIES_CONFIG, enemyDisplayName } from '../config/gameConfig';
 import { t } from '../i18n/locales';
+import { SaveManager } from '../managers/SaveManager';
 import { describeEnemyThreat } from './resistanceText';
 import {
   addDangerButton,
@@ -59,6 +60,10 @@ export function showVictoryDialog(
   stats: string,
   onMenu: () => void
 ): void {
+  if (!SaveManager.getInstance().isReducedMotion()) {
+    scene.cameras.main.zoomTo(1.12, 900, 'Cubic.easeOut', true);
+  }
+
   const modal = createDimModal(scene, 9999, 460, 320);
   const desc = scene.add.text(0, 8, t('victoryDesc'), hudStyle('13px', UI.text.muted)).setOrigin(0.5);
   desc.setAlign('center');
@@ -78,6 +83,10 @@ export function showDefeatDialog(
   onRestart: () => void,
   onMenu: () => void
 ): void {
+  if (!SaveManager.getInstance().isReducedMotion()) {
+    scene.cameras.main.shake(400, 0.015);
+  }
+
   const modal = createDimModal(scene, 9999, 460, 300, { stroke: UI.color.danger, overlayAlpha: 0.85 });
   const desc = scene.add.text(0, -22, t('defeatDesc'), hudStyle('13px', UI.text.muted)).setOrigin(0.5);
   desc.setAlign('center');

@@ -181,8 +181,13 @@ function enterBossPhase2(enemy: Enemy, towers?: Tower[], hero?: Hero): void {
   enemy.bossStompTimerMs = BOSS_STOMP_INTERVAL_MS;
 
   if (enemy.enemyType === EnemyType.GOLEM_BOSS) {
-    enemy.config = { ...enemy.config, armor: 0.7 }; // Aumenta a armadura de pedra
+    enemy.config = { ...enemy.config, armor: 0.7 };
     floatAnnounce(enemy.scene, enemy.x, enemy.y, t('golemBossPhase2Announce'), '#d97706');
+  } else if (enemy.enemyType === EnemyType.FROST_GIANT_BOSS) {
+    floatAnnounce(enemy.scene, enemy.x, enemy.y, t('frostGiantBossPhase2Announce'), '#38bdf8');
+  } else if (enemy.enemyType === EnemyType.INFERNAL_BOSS) {
+    enemy.config = { ...enemy.config, speed: enemy.config.speed * 1.4 };
+    floatAnnounce(enemy.scene, enemy.x, enemy.y, t('infernalBossPhase2Announce'), '#ef4444');
   } else {
     if (!enemy.bossFuryAuraSprite && enemy.scene) {
       enemy.bossFuryAuraSprite = enemy.scene.add.sprite(0, 0, 'fury_aura');
@@ -210,7 +215,11 @@ function executeBossGroundStomp(enemy: Enemy, towers?: Tower[], hero?: Hero): vo
   if (!enemy.isAlive || !enemy.scene) return;
   enemy.scene.cameras.main.shake(250, 0.012);
 
-  const shockTint = enemy.enemyType === EnemyType.GOLEM_BOSS ? 0xd97706 : 0xef4444;
+  let shockTint = 0xef4444;
+  if (enemy.enemyType === EnemyType.GOLEM_BOSS) shockTint = 0xd97706;
+  if (enemy.enemyType === EnemyType.FROST_GIANT_BOSS) shockTint = 0x38bdf8;
+  if (enemy.enemyType === EnemyType.INFERNAL_BOSS) shockTint = 0xf97316;
+
   const shock = enemy.scene.add.sprite(enemy.x, enemy.y, 'fx_shockwave');
   shock.setTint(shockTint);
   shock.setScale(0.3).setAlpha(0.95);
@@ -251,6 +260,14 @@ function enterBossPhase3(enemy: Enemy): void {
     floatAnnounce(enemy.scene, enemy.x, enemy.y, t('golemBossPhase3Announce'), '#78716c');
     enemy.spawnAlongPath(EnemyType.SCOUT, 20);
     enemy.spawnAlongPath(EnemyType.SOLDIER, 20);
+  } else if (enemy.enemyType === EnemyType.FROST_GIANT_BOSS) {
+    floatAnnounce(enemy.scene, enemy.x, enemy.y, t('frostGiantBossPhase3Announce'), '#38bdf8');
+    enemy.spawnAlongPath(EnemyType.FLYER, 20);
+    enemy.spawnAlongPath(EnemyType.FLYER, 20);
+  } else if (enemy.enemyType === EnemyType.INFERNAL_BOSS) {
+    floatAnnounce(enemy.scene, enemy.x, enemy.y, t('infernalBossPhase3Announce'), '#d97706');
+    enemy.spawnAlongPath(EnemyType.TANK, 20);
+    enemy.spawnAlongPath(EnemyType.TANK, 20);
   } else {
     if (!enemy.bossBlazingAegisGraphics && enemy.scene) {
       enemy.bossBlazingAegisGraphics = enemy.scene.add.graphics();
