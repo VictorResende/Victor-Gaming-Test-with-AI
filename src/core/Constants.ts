@@ -12,6 +12,7 @@ export enum EnemyType {
   TANK = 'TANK',             // Golem de Magma (Magma Golem)
   FLYER = 'FLYER',           // Gárgula Alada (Gargoyle)
   BOSS = 'BOSS',             // Dragão Ancião (Elder Dragon)
+  GOLEM_BOSS = 'GOLEM_BOSS', // Guardião de Pedra (Stone Golem)
   CARRIER = 'CARRIER',       // Necromante das Trevas (Necromancer)
   SHIELDER = 'SHIELDER',     // Sacerdote Protetor (Shielder Priest)
   STEALTH = 'STEALTH',       // Assassino das Sombras (Shadow Assassin)
