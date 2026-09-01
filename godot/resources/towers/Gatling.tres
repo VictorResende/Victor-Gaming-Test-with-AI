@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/TowerData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+tower_id = "gatling"
+display_name = "Balista de Arqueiros"
+description = "Balista de tiro rápido de saetas imperiais."
+damage = 14.0
+attack_range = 145.0
+attack_speed = 2.4
+cost = 100
+level = 1
+damage_type = "PHYSICAL"
+projectile_speed = 520.0
+upgrade_cost = 70
+sell_value = 70

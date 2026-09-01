@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/resources/TowerData.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+tower_id = "cannon"
+display_name = "Catapulta de Bombardeio"
+description = "Dispara projéteis explosivos pesados com dano em área."
+damage = 38.0
+attack_range = 130.0
+attack_speed = 0.8
+cost = 125
+level = 1
+damage_type = "PHYSICAL"
+projectile_speed = 360.0
+is_aoe = true
+splash_radius = 55.0
+upgrade_cost = 85
+sell_value = 85

@@ -1,0 +1,63 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/HUDController.gd" id="1_hud"]
+
+[node name="HUD" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_hud")
+
+[node name="TopBar" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 54.0
+grow_horizontal = 2
+
+[node name="Margin" type="MarginContainer" parent="TopBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="HBox" type="HBoxContainer" parent="TopBar/Margin"]
+layout_mode = 2
+
+[node name="GoldLabel" type="Label" parent="TopBar/Margin/HBox"]
+layout_mode = 2
+text = "400G"
+
+[node name="LivesLabel" type="Label" parent="TopBar/Margin/HBox"]
+layout_mode = 2
+text = "♥ 20"
+
+[node name="WaveLabel" type="Label" parent="TopBar/Margin/HBox"]
+layout_mode = 2
+text = "Wave 1/5"
+
+[node name="SpeedControl" type="HBoxContainer" parent="TopBar/Margin/HBox"]
+layout_mode = 2
+alignment = 2
+
+[node name="Speed1x" type="Button" parent="TopBar/Margin/HBox/SpeedControl"]
+layout_mode = 2
+text = "1x"
+
+[node name="Speed2x" type="Button" parent="TopBar/Margin/HBox/SpeedControl"]
+layout_mode = 2
+text = "2x"
+
+[node name="Speed4x" type="Button" parent="TopBar/Margin/HBox/SpeedControl"]
+layout_mode = 2
+text = "4x"
+
+[connection signal="pressed" from="TopBar/Margin/HBox/SpeedControl/Speed1x" to="." method="_on_speed_1x_pressed"]
+[connection signal="pressed" from="TopBar/Margin/HBox/SpeedControl/Speed2x" to="." method="_on_speed_2x_pressed"]
+[connection signal="pressed" from="TopBar/Margin/HBox/SpeedControl/Speed4x" to="." method="_on_speed_4x_pressed"]

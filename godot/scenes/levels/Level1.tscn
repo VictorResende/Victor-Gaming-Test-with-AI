@@ -1,0 +1,23 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/managers/WaveManager.gd" id="1_wave"]
+[ext_resource type="PackedScene" path="res://scenes/ui/HUD.tscn" id="2_hud"]
+[ext_resource type="PackedScene" path="res://scenes/hero/Hero.tscn" id="3_hero"]
+
+[sub_resource type="Curve2D" id="Curve2D_path1"]
+_data = {
+"points": PackedVector2Array(0, 0, 0, 0, -30, 360, 0, 0, 0, 0, 320, 360, 0, 0, 0, 0, 320, 180, 0, 0, 0, 0, 720, 180, 0, 0, 0, 0, 720, 520, 0, 0, 0, 0, 1320, 520)
+}
+
+[node name="Level1" type="Node2D"]
+
+[node name="Path2D" type="Path2D" parent="."]
+curve = SubResource("Curve2D_path1")
+
+[node name="Hero" parent="." instance=ExtResource("3_hero")]
+position = Vector2(400, 360)
+
+[node name="WaveManager" type="Node" parent="."]
+script = ExtResource("1_wave")
+
+[node name="HUD" parent="." instance=ExtResource("2_hud")]
