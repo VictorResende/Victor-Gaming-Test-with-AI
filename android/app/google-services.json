@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "457611452267",
+    "project_id": "jog-tests",
+    "storage_bucket": "jog-tests.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:457611452267:android:6e20fb14c2e214c452f62e",
+        "android_client_info": {
+          "package_name": "com.antigravity.towerdefense"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCWbiTFlKr0Xn2-fIDdvquyg8HdtMtGWtM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
