@@ -1,4 +1,3 @@
-class_name AudioManager
 extends Node
 
 var music_player: AudioStreamPlayer

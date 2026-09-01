@@ -1,4 +1,3 @@
-class_name SaveManager
 extends Node
 
 const SAVE_PATH = "user://savegame.cfg"
