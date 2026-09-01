@@ -1,4 +1,3 @@
-class_name SpellsManager
 extends Node
 
 signal spell_cast(spell_type: String, position: Vector2)
