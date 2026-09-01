@@ -1,4 +1,6 @@
 import { BiomeType, EnemyType } from '../core/Constants';
+import type { I18nKey } from '../i18n/locales';
+import { t } from '../i18n/locales';
 
 export interface WaveEnemyGroup {
   enemyType: EnemyType;
@@ -34,9 +36,9 @@ export interface TeleporterData {
 
 export interface LevelData {
   id: number;
-  name: string;
+  nameKey: I18nKey;
   biome: BiomeType;
-  description: string;
+  descKey: I18nKey;
   initialGold: number;
   initialLives: number;
   paths: Point[][];
@@ -46,12 +48,20 @@ export interface LevelData {
   waves: WaveData[];
 }
 
+export function levelTitle(level: Pick<LevelData, 'nameKey'>): string {
+  return t(level.nameKey);
+}
+
+export function levelBlurb(level: Pick<LevelData, 'descKey'>): string {
+  return t(level.descKey);
+}
+
 export const LEVELS_CONFIG: LevelData[] = [
   {
     id: 1,
-    name: 'Floresta dos Sussurros (Fase 1)',
-    biome: BiomeType.CANYON,
-    description: 'Trilha sinuosa através da floresta mística e clareiras élficas. Ideal para aprender as táticas reais de defesa.',
+    nameKey: 'level1Name',
+    biome: BiomeType.FOREST,
+    descKey: 'level1Desc',
     initialGold: 350,
     initialLives: 20,
     paths: [
@@ -150,9 +160,9 @@ export const LEVELS_CONFIG: LevelData[] = [
   },
   {
     id: 2,
-    name: 'Ravina dos Orcs (Fase 2)',
-    biome: BiomeType.TUNDRA,
-    description: 'Duas frentes de ataque de hordas selvagens convergindo na ponte central. Requer defesa coordenada.',
+    nameKey: 'level2Name',
+    biome: BiomeType.RAVINE,
+    descKey: 'level2Desc',
     initialGold: 450,
     initialLives: 20,
     paths: [
@@ -228,9 +238,9 @@ export const LEVELS_CONFIG: LevelData[] = [
   },
   {
     id: 3,
-    name: 'Cidadela Congelada (Fase 3)',
-    biome: BiomeType.CYBER,
-    description: 'A fortaleza glacial dos guardiões nórdicos. Múltiplos ataques em alta velocidade e gigantes de gelo.',
+    nameKey: 'level3Name',
+    biome: BiomeType.CITADEL,
+    descKey: 'level3Desc',
     initialGold: 550,
     initialLives: 20,
     paths: [
@@ -305,10 +315,10 @@ export const LEVELS_CONFIG: LevelData[] = [
   },
   {
     id: 4,
-    name: 'Forjas de Magma dos Anões (Fase 4)',
+    nameKey: 'level4Name',
     biome: BiomeType.MAGMA,
-    description: 'Complexo subterrâneo anão cortado por rios de lava e fogo. Carregadores mecânicos lançam enxames de golens alados.',
-    initialGold: 500,
+    descKey: 'level4Desc',
+    initialGold: 575,
     initialLives: 20,
     paths: [
       [
@@ -380,10 +390,10 @@ export const LEVELS_CONFIG: LevelData[] = [
   },
   {
     id: 5,
-    name: 'Ruínas Arcanas (Fase 5)',
+    nameKey: 'level5Name',
     biome: BiomeType.RUINS,
-    description: 'Santuário antigo com portais de teletransporte quântico-arcano. Protetores rúnicos blindam seus aliados com barreiras mágicas.',
-    initialGold: 550,
+    descKey: 'level5Desc',
+    initialGold: 625,
     initialLives: 20,
     paths: [
       // Rota Principal com Portal de Teletransporte
@@ -464,10 +474,10 @@ export const LEVELS_CONFIG: LevelData[] = [
   },
   {
     id: 6,
-    name: 'Pináculo do Dragão (Fase 6)',
-    biome: BiomeType.ORBITAL,
-    description: 'O cume vulcânico do covil do Dragão Ancião. Infiltradores sombrios e titãs alados marcham para o cerco final.',
-    initialGold: 600,
+    nameKey: 'level6Name',
+    biome: BiomeType.PINNACLE,
+    descKey: 'level6Desc',
+    initialGold: 700,
     initialLives: 20,
     paths: [
       // Doca Hangar Alfa (Norte)

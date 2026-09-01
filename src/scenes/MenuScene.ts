@@ -4,7 +4,7 @@ import { SaveManager } from '../managers/SaveManager';
 import { AudioManager } from '../managers/AudioManager';
 import { getDailyChallenge, MODIFIER_INFO } from '../config/dailyChallengeConfig';
 import { SafeArea, SafeAreaBounds, SafeAreaInsets } from '../utils/SafeArea';
-import { ACHIEVEMENTS_LIST } from '../managers/AchievementsManager';
+import { ACHIEVEMENTS_LIST, achievementBlurb, achievementTitle } from '../config/achievementsConfig';
 
 const FONT = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 const MIN_TOUCH = 48;
@@ -43,6 +43,7 @@ export class MenuScene extends Phaser.Scene {
     this.createActionColumn(width, height);
     this.createTopBar(width);
     this.bindEscape();
+    this.input.once('pointerdown', () => AudioManager.getInstance().ensureMusic());
 
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.closeActiveModal();
@@ -201,7 +202,7 @@ export class MenuScene extends Phaser.Scene {
       this.navigate('GameScene', { isBossRush: true });
     });
     this.createModeCard(colX + gap, cardY, '∞', t('endless'), 0xa78bfa, () => {
-      this.navigate('GameScene', { levelId: 1, isEndless: true });
+      this.navigate('LevelSelectScene', { endlessPick: true });
     });
 
     this.add.text(colX - 168, cardY + 86, t('progress'), {
@@ -630,13 +631,13 @@ export class MenuScene extends Phaser.Scene {
         row.strokeRoundedRect(-listW / 2, y, listW, rowH - 8, 12);
 
         const icon = this.add.text(-listW / 2 + 28, y + 27, ach.icon, { fontSize: '20px' }).setOrigin(0.5);
-        const name = this.add.text(-listW / 2 + 52, y + 16, ach.name, {
+        const name = this.add.text(-listW / 2 + 52, y + 16, achievementTitle(ach), {
           fontFamily: FONT,
           fontSize: '14px',
           fontStyle: '700',
           color: isOn ? '#fafafa' : '#71717a'
         }).setOrigin(0, 0.5);
-        const desc = this.add.text(-listW / 2 + 52, y + 36, ach.description, {
+        const desc = this.add.text(-listW / 2 + 52, y + 36, achievementBlurb(ach), {
           fontFamily: FONT,
           fontSize: '11px',
           color: '#a1a1aa',

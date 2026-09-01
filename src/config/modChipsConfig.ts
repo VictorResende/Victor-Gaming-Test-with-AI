@@ -1,4 +1,5 @@
 import { ModChipType } from '../core/Constants';
+import type { I18nKey } from '../i18n/locales';
 
 export interface ModChipStats {
   critChance?: number;
@@ -16,8 +17,8 @@ export interface ModChipStats {
 export interface ModChipData {
   type: ModChipType;
   id: string;
-  nameKey: string;
-  description: string;
+  nameKey: I18nKey;
+  descKey: I18nKey;
   icon: string;
   color: number;
   accentColor: number;
@@ -31,7 +32,7 @@ export const MOD_CHIPS_CONFIG: Record<ModChipType, ModChipData> = {
     type: ModChipType.CRITICAL_STRIKE,
     id: 'chip_crit',
     nameKey: 'modChipCrit',
-    description: 'Encantamento arcano: concede 25% de chance de causar 250% de dano crítico brutal com impacto devastador.',
+    descKey: 'modChipCritDesc',
     icon: '⚡',
     color: 0xef4444,
     accentColor: 0xfca5a5,
@@ -46,7 +47,7 @@ export const MOD_CHIPS_CONFIG: Record<ModChipType, ModChipData> = {
     type: ModChipType.CHAIN_RICOCHET,
     id: 'chip_ricochet',
     nameKey: 'modChipRicochet',
-    description: 'Encantamento feérico: projéteis e feitiços saltam em até 2 monstros próximos adicionais (70% do dano).',
+    descKey: 'modChipRicochetDesc',
     icon: '✨',
     color: 0xeab308,
     accentColor: 0xfef08a,
@@ -62,7 +63,7 @@ export const MOD_CHIPS_CONFIG: Record<ModChipType, ModChipData> = {
     type: ModChipType.ARMOR_PIERCE,
     id: 'chip_pierce',
     nameKey: 'modChipPierce',
-    description: 'Bênção sagrada: ignora 100% da armadura do alvo e causa +25% de dano adicional a monstros blindados.',
+    descKey: 'modChipPierceDesc',
     icon: '🗡️',
     color: 0xf97316,
     accentColor: 0xfed7aa,
@@ -77,7 +78,7 @@ export const MOD_CHIPS_CONFIG: Record<ModChipType, ModChipData> = {
     type: ModChipType.CRYO_BLAST,
     id: 'chip_cryo',
     nameKey: 'modChipCryo',
-    description: 'Geada primordial: ataques provocam uma explosão gélida em área (90px) que desacelera monstros em 60% por 3s.',
+    descKey: 'modChipCryoDesc',
     icon: '❄️',
     color: 0x06b6d4,
     accentColor: 0xa5f3fc,

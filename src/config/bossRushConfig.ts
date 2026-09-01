@@ -3,9 +3,9 @@ import { LevelData, WaveData } from './levelsConfig';
 
 export const BOSS_RUSH_LEVEL: LevelData = {
   id: 99,
-  name: 'Arena dos Titãs (Boss Rush)',
-  biome: BiomeType.CYBER,
-  description: 'Enfrente ondas implacáveis de Chefes Colossais e suas escoltas de elite.',
+  nameKey: 'levelBossRushName',
+  biome: BiomeType.CITADEL,
+  descKey: 'levelBossRushDesc',
   initialGold: 1200,
   initialLives: 20,
   paths: [

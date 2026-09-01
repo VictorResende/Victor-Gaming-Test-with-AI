@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { DamageType, ModChipType, TargetPriority, TowerType, GAME_CONSTANTS, TacticalModifier } from '../core/Constants';
+import { DamageType, ModChipType, TargetPriority, TowerType, GAME_CONSTANTS, TacticalModifier, TowerBranchId } from '../core/Constants';
 import { TOWERS_CONFIG, TowerConfigData, TowerLevelData, Tier4BranchData } from '../config/gameConfig';
 import { Enemy, pickNearestEnemy } from './Enemy';
 import { Projectile } from './Projectile';
@@ -7,6 +7,9 @@ import { ModChip } from './ModChip';
 import { AudioManager } from '../managers/AudioManager';
 import { SaveManager } from '../managers/SaveManager';
 import { EventBus, GameEvents } from '../core/EventBus';
+import { towerDamageModifierMultiplier } from '../config/modifierEffects';
+import { TowerCombatStats } from '../ui/towerStatText';
+import { laserFireKind, LaserFireKind } from './laserFireKind';
 
 export class Tower extends Phaser.GameObjects.Container {
   public towerType: TowerType;
@@ -34,6 +37,7 @@ export class Tower extends Phaser.GameObjects.Container {
 
   private fireCooldownMs = 0;
   public stunTimerMs = 0;
+  private cryoStunCooldownMs = 0;
   private currentTarget: Enemy | null = null;
   private isSelected = false;
 
@@ -110,6 +114,21 @@ export class Tower extends Phaser.GameObjects.Container {
     return this.config.levels[Math.min(this.level, this.config.levels.length) - 1];
   }
 
+  public getCombatStats(): TowerCombatStats {
+    const lvl = this.getLevelData();
+    return {
+      damage: this.getEffectiveDamage(),
+      fireRate: lvl.fireRate,
+      laserDPS: lvl.laserDPS ? lvl.laserDPS * this.getModifierDamageMultiplier() : undefined,
+      slowFactor: lvl.slowFactor,
+      slowDuration: lvl.slowDuration,
+      splashRadius: lvl.splashRadius,
+      chainCount: lvl.chainCount,
+      ignoreArmor: this.tier4Branch?.branchId === TowerBranchId.GATLING_SNIPER,
+      revealsStealth: this.towerType === TowerType.WITCH
+    };
+  }
+
   public getEffectiveRange(): number {
     const baseRange = this.getLevelData().range;
     const save = SaveManager.getInstance();
@@ -145,20 +164,15 @@ export class Tower extends Phaser.GameObjects.Container {
     if (save.isRelicEquipped('kings_crown')) {
       multiplier *= 1.10;
     }
-    multiplier *= this.getEnergySurgeMultiplier();
+    multiplier *= this.getModifierDamageMultiplier();
     return baseDamage * multiplier;
   }
 
-  private getEnergySurgeMultiplier(): number {
-    const modifiers = (this.scene as Phaser.Scene & { modifiers?: TacticalModifier[] }).modifiers;
-    if (!modifiers?.includes(TacticalModifier.ENERGY_SURGE)) return 1;
-    if (this.config.damageType === DamageType.LASER || this.config.damageType === DamageType.ELECTRIC) {
-      return 1.5;
-    }
-    if (this.config.damageType === DamageType.PHYSICAL) {
-      return 0.7;
-    }
-    return 1;
+  private getModifierDamageMultiplier(): number {
+    return towerDamageModifierMultiplier(
+      (this.scene as Phaser.Scene & { modifiers?: TacticalModifier[] }).modifiers,
+      this.config.damageType
+    );
   }
 
   public updateStats(): void {
@@ -309,7 +323,7 @@ export class Tower extends Phaser.GameObjects.Container {
     return true;
   }
 
-  public evolveTier4(branchId: string): boolean {
+  public evolveTier4(branchId: TowerBranchId): boolean {
     if (!this.canEvolveTier4()) return false;
     const branches = this.config.tier4Branches;
     if (!branches) return false;
@@ -457,6 +471,7 @@ export class Tower extends Phaser.GameObjects.Container {
     }
 
     this.fireCooldownMs = Math.max(0, this.fireCooldownMs - effectiveDelta);
+    this.cryoStunCooldownMs = Math.max(0, this.cryoStunCooldownMs - effectiveDelta);
 
     const range = this.getEffectiveRange();
     const inRangeEnemies = enemies.filter(e => e.isAlive && Phaser.Math.Distance.Between(this.x, this.y, e.x, e.y) <= range);
@@ -513,150 +528,147 @@ export class Tower extends Phaser.GameObjects.Container {
     const effectiveFireRate = lvl.fireRate * (this.hasteBuffTimerMs > 0 ? this.hasteMultiplier : 1.0);
     this.fireCooldownMs = 1000 / effectiveFireRate;
 
-    // 1. GATLING
-    if (this.towerType === TowerType.GATLING) {
-      AudioManager.getInstance().playGatling();
-      const proj = projectilesPool.get();
+    const attacks: Partial<Record<TowerType, () => void>> = {
+      [TowerType.GATLING]: () => this.fireGatling(target, projectilesPool, allEnemies, damage),
+      [TowerType.CANNON]: () => this.fireCannon(target, projectilesPool, allEnemies, damage, lvl),
+      [TowerType.CRYO]: () => this.fireCryo(target, projectilesPool, allEnemies, damage, lvl),
+      [TowerType.TESLA]: () => this.fireTesla(target, damage, allEnemies, lvl),
+      [TowerType.WITCH]: () => this.fireWitch(target, projectilesPool, allEnemies, damage, lvl)
+    };
+    attacks[this.towerType]?.();
+  }
 
-      if (this.tier4Branch?.branchId === 'gatling_sniper') {
-        // Uranium Sniper: Hi-velocity projectile, ignores armor bonus
-        proj.fire(this.x, this.y, target, damage, DamageType.PHYSICAL, 'proj_sniper', 1100, 0, undefined, undefined, allEnemies, this.equippedChip, false, undefined, undefined, true);
-      } else {
-        // Gatling Vulcan or Normal
-        const speed = this.tier4Branch?.branchId === 'gatling_vulcan' ? 850 : 750;
-        proj.fire(this.x, this.y, target, damage, DamageType.PHYSICAL, 'proj_bullet', speed, 0, undefined, undefined, allEnemies, this.equippedChip);
-      }
+  private fireGatling(target: Enemy, projectilesPool: { get: () => Projectile }, allEnemies: Enemy[], damage: number): void {
+    AudioManager.getInstance().playGatling();
+    const proj = projectilesPool.get();
+    if (this.tier4Branch?.branchId === TowerBranchId.GATLING_SNIPER) {
+      proj.fire(this.x, this.y, target, damage, DamageType.PHYSICAL, 'proj_sniper', 1100, 0, undefined, undefined, allEnemies, this.equippedChip, false, undefined, undefined, true);
+    } else {
+      const speed = this.tier4Branch?.branchId === TowerBranchId.GATLING_VULCAN ? 850 : 750;
+      proj.fire(this.x, this.y, target, damage, DamageType.PHYSICAL, 'proj_bullet', speed, 0, undefined, undefined, allEnemies, this.equippedChip);
     }
-    // 2. CANNON
-    else if (this.towerType === TowerType.CANNON) {
-      AudioManager.getInstance().playCannon();
-      const proj = projectilesPool.get();
+  }
 
-      if (this.tier4Branch?.branchId === 'cannon_missiles') {
-        // Homing Missiles
-        proj.fire(this.x, this.y, target, damage, DamageType.PHYSICAL, 'proj_missile', 550, lvl.splashRadius || 90, undefined, undefined, allEnemies, this.equippedChip, true);
-      } else if (this.tier4Branch?.branchId === 'cannon_nuclear') {
-        // Nuclear Mortar: Huge AoE and radiation burn
-        proj.fire(this.x, this.y, target, damage, DamageType.PHYSICAL, 'proj_nuke', 400, lvl.splashRadius || 160, undefined, undefined, allEnemies, this.equippedChip, false, 80, 4000);
-      } else {
-        proj.fire(this.x, this.y, target, damage, DamageType.PHYSICAL, 'proj_cannon', 450, lvl.splashRadius || 80, undefined, undefined, allEnemies, this.equippedChip);
-      }
+  private fireCannon(
+    target: Enemy,
+    projectilesPool: { get: () => Projectile },
+    allEnemies: Enemy[],
+    damage: number,
+    lvl: { splashRadius?: number }
+  ): void {
+    AudioManager.getInstance().playCannon();
+    const proj = projectilesPool.get();
+    if (this.tier4Branch?.branchId === TowerBranchId.CANNON_MISSILES) {
+      proj.fire(this.x, this.y, target, damage, DamageType.PHYSICAL, 'proj_missile', 550, lvl.splashRadius || 90, undefined, undefined, allEnemies, this.equippedChip, true);
+    } else if (this.tier4Branch?.branchId === TowerBranchId.CANNON_NUCLEAR) {
+      proj.fire(this.x, this.y, target, damage, DamageType.PHYSICAL, 'proj_nuke', 400, lvl.splashRadius || 160, undefined, undefined, allEnemies, this.equippedChip, false, 80, 4000);
+    } else {
+      proj.fire(this.x, this.y, target, damage, DamageType.PHYSICAL, 'proj_cannon', 450, lvl.splashRadius || 80, undefined, undefined, allEnemies, this.equippedChip);
     }
-    // 3. CRYO
-    else if (this.towerType === TowerType.CRYO) {
-      AudioManager.getInstance().playFreeze();
-      const proj = projectilesPool.get();
+  }
 
-      if (this.tier4Branch?.branchId === 'cryo_zero') {
-        // Absolute Zero: deep freeze + stun
-        proj.fire(this.x, this.y, target, damage, DamageType.FROST, 'proj_cryo', 550, 80, lvl.slowFactor, lvl.slowDuration, allEnemies, this.equippedChip);
-        target.applyStatus('STUN', 1500);
-      } else {
-        // Blizzard Temple or Normal Cryo
-        const splash = lvl.splashRadius || 100;
-        proj.fire(this.x, this.y, target, damage, DamageType.FROST, 'proj_cryo', 500, splash, lvl.slowFactor, lvl.slowDuration, allEnemies, this.equippedChip);
+  private fireCryo(
+    target: Enemy,
+    projectilesPool: { get: () => Projectile },
+    allEnemies: Enemy[],
+    damage: number,
+    lvl: { slowFactor?: number; slowDuration?: number; splashRadius?: number }
+  ): void {
+    AudioManager.getInstance().playFreeze();
+    const proj = projectilesPool.get();
+    if (this.tier4Branch?.branchId === TowerBranchId.CRYO_ZERO) {
+      proj.fire(this.x, this.y, target, damage, DamageType.FROST, 'proj_cryo', 550, 80, lvl.slowFactor, lvl.slowDuration, allEnemies, this.equippedChip);
+      if (this.cryoStunCooldownMs <= 0) {
+        target.applyStatus('STUN', 700);
+        this.cryoStunCooldownMs = 2200;
       }
+    } else {
+      proj.fire(this.x, this.y, target, damage, DamageType.FROST, 'proj_cryo', 500, lvl.splashRadius || 100, lvl.slowFactor, lvl.slowDuration, allEnemies, this.equippedChip);
     }
-    // 4. TESLA
-    else if (this.towerType === TowerType.TESLA) {
-      if (this.tier4Branch?.branchId === 'tesla_plasma') {
-        // Plasma Disruptor: High burst plasma discharge + AoE shock
-        this.firePlasmaDischarge(target, damage, lvl.splashRadius || 80, allEnemies);
-      } else {
-        // Storm Generator or Normal Tesla
-        const chainCount = lvl.chainCount || 3;
-        this.fireTeslaArc(target, damage, chainCount, allEnemies);
-      }
+  }
+
+  private fireTesla(target: Enemy, damage: number, allEnemies: Enemy[], lvl: { chainCount?: number; splashRadius?: number }): void {
+    if (this.tier4Branch?.branchId === TowerBranchId.TESLA_PLASMA) {
+      this.firePlasmaDischarge(target, damage, lvl.splashRadius || 80, allEnemies);
+    } else {
+      this.fireTeslaArc(target, damage, lvl.chainCount || 3, allEnemies);
     }
-    // 5. WITCH — orbe elétrico que revela furtivos e explode em área curta
-    else if (this.towerType === TowerType.WITCH) {
-      AudioManager.getInstance().playTesla();
-      const proj = projectilesPool.get();
-      proj.fire(
-        this.x,
-        this.y,
-        target,
-        damage,
-        DamageType.ELECTRIC,
-        'proj_witch_orb',
-        520,
-        lvl.splashRadius || 46,
-        undefined,
-        undefined,
-        allEnemies,
-        this.equippedChip
-      );
-    }
+  }
+
+  private fireWitch(
+    target: Enemy,
+    projectilesPool: { get: () => Projectile },
+    allEnemies: Enemy[],
+    damage: number,
+    lvl: { splashRadius?: number }
+  ): void {
+    AudioManager.getInstance().playTesla();
+    const proj = projectilesPool.get();
+    proj.fire(
+      this.x,
+      this.y,
+      target,
+      damage,
+      DamageType.ELECTRIC,
+      'proj_witch_orb',
+      520,
+      lvl.splashRadius || 46,
+      undefined,
+      undefined,
+      allEnemies,
+      this.equippedChip
+    );
   }
 
   private fireLaser(effectiveDelta: number, inRangeEnemies: Enemy[]): void {
     const lvl = this.getLevelData();
     const baseDps = lvl.laserDPS || 60;
-    const dps = baseDps * (this.hasteBuffTimerMs > 0 ? this.hasteMultiplier : 1.0) * this.getEnergySurgeMultiplier();
+    const dps = baseDps * (this.hasteBuffTimerMs > 0 ? this.hasteMultiplier : 1.0) * this.getModifierDamageMultiplier();
     AudioManager.getInstance().playLaser();
-
     this.laserGraphics.clear();
 
-    if (this.tier4Branch?.branchId === 'laser_prism') {
-      // Prism Splitter: Fires continuous beams at up to 4 targets simultaneously
-      const targets = [...inRangeEnemies]
-        .sort((a, b) => Phaser.Math.Distance.Between(this.x, this.y, a.x, a.y) - Phaser.Math.Distance.Between(this.x, this.y, b.x, b.y))
-        .slice(0, 4);
-      const splitDPS = dps;
-      const damageThisFrame = splitDPS * (effectiveDelta / 1000);
+    const beams: Record<LaserFireKind, () => void> = {
+      prism: () => this.firePrismLasers(dps * (effectiveDelta / 1000), inRangeEnemies),
+      orbital: () => this.fireFocusedLaser(dps * (effectiveDelta / 1000), inRangeEnemies, 8, 0xe11d48),
+      beam: () => this.fireFocusedLaser(dps * (effectiveDelta / 1000), inRangeEnemies, 4, 0xa855f7)
+    };
+    beams[laserFireKind(this.tier4Branch?.branchId)]();
+  }
 
-      targets.forEach(target => {
-        let finalDamage = damageThisFrame;
-        let ignoreArmor = false;
-        let isCrit = false;
-
-        if (this.equippedChip) {
-          const crit = this.equippedChip.checkCritical();
-          if (crit.isCrit) {
-            isCrit = true;
-            finalDamage *= crit.multiplier;
-          }
-          const mod = this.equippedChip.modifyDamage(finalDamage, target);
-          finalDamage = mod.finalDamage;
-          ignoreArmor = mod.ignoreArmor;
-        }
-
-        target.takeDamage(finalDamage, DamageType.LASER, false, inRangeEnemies, ignoreArmor, isCrit);
-
-        this.laserGraphics.lineStyle(3, 0xa855f7, 0.85);
-        this.laserGraphics.lineBetween(this.x, this.y, target.x, target.y);
-        this.laserGraphics.lineStyle(1.5, 0xffffff, 1);
-        this.laserGraphics.lineBetween(this.x, this.y, target.x, target.y);
-      });
-    } else {
-      // Single Target or Orbital Melter (Massive beam)
-      if (!this.currentTarget) return;
-      let damageThisFrame = dps * (effectiveDelta / 1000);
-      let ignoreArmor = false;
-      let isCrit = false;
-
-      if (this.equippedChip) {
-        const crit = this.equippedChip.checkCritical();
-        if (crit.isCrit) {
-          isCrit = true;
-          damageThisFrame *= crit.multiplier;
-        }
-        const mod = this.equippedChip.modifyDamage(damageThisFrame, this.currentTarget);
-        damageThisFrame = mod.finalDamage;
-        ignoreArmor = mod.ignoreArmor;
-      }
-
-      this.currentTarget.takeDamage(damageThisFrame, DamageType.LASER, false, inRangeEnemies, ignoreArmor, isCrit);
-
-      const isOrbital = this.tier4Branch?.branchId === 'laser_orbital';
-      const beamWidth = isOrbital ? 8 : 4;
-      const beamColor = isOrbital ? 0xe11d48 : 0xa855f7;
-
-      this.laserGraphics.lineStyle(beamWidth, beamColor, 0.9);
-      this.laserGraphics.lineBetween(this.x, this.y, this.currentTarget.x, this.currentTarget.y);
-      this.laserGraphics.lineStyle(Math.max(2, beamWidth / 2), 0xffffff, 1);
-      this.laserGraphics.lineBetween(this.x, this.y, this.currentTarget.x, this.currentTarget.y);
+  private applyLaserTick(target: Enemy, frameDamage: number, inRangeEnemies: Enemy[]): void {
+    let finalDamage = frameDamage;
+    let ignoreArmor = false;
+    let isCrit = false;
+    if (this.equippedChip) {
+      const hit = this.equippedChip.applyToHit(frameDamage, target);
+      finalDamage = hit.damage;
+      ignoreArmor = hit.ignoreArmor;
+      isCrit = hit.isCrit;
     }
+    target.takeDamage(finalDamage, DamageType.LASER, false, inRangeEnemies, ignoreArmor, isCrit);
+  }
+
+  private strokeLaserBeam(targetX: number, targetY: number, width: number, color: number): void {
+    this.laserGraphics.lineStyle(width, color, 0.9);
+    this.laserGraphics.lineBetween(this.x, this.y, targetX, targetY);
+    this.laserGraphics.lineStyle(Math.max(1.5, width / 2), 0xffffff, 1);
+    this.laserGraphics.lineBetween(this.x, this.y, targetX, targetY);
+  }
+
+  private firePrismLasers(frameDamage: number, inRangeEnemies: Enemy[]): void {
+    const targets = [...inRangeEnemies]
+      .sort((a, b) => Phaser.Math.Distance.Between(this.x, this.y, a.x, a.y) - Phaser.Math.Distance.Between(this.x, this.y, b.x, b.y))
+      .slice(0, 4);
+    targets.forEach(target => {
+      this.applyLaserTick(target, frameDamage, inRangeEnemies);
+      this.strokeLaserBeam(target.x, target.y, 3, 0xa855f7);
+    });
+  }
+
+  private fireFocusedLaser(frameDamage: number, inRangeEnemies: Enemy[], width: number, color: number): void {
+    if (!this.currentTarget) return;
+    this.applyLaserTick(this.currentTarget, frameDamage, inRangeEnemies);
+    this.strokeLaserBeam(this.currentTarget.x, this.currentTarget.y, width, color);
   }
 
   private fireTeslaArc(initialTarget: Enemy, damage: number, maxChains: number, allEnemies: Enemy[]): void {
@@ -668,14 +680,10 @@ export class Tower extends Phaser.GameObjects.Container {
     let ignoreArmor = false;
 
     if (this.equippedChip) {
-      const crit = this.equippedChip.checkCritical();
-      if (crit.isCrit) {
-        isCrit = true;
-        currentDmg *= crit.multiplier;
-      }
-      const mod = this.equippedChip.modifyDamage(currentDmg, initialTarget);
-      currentDmg = mod.finalDamage;
-      ignoreArmor = mod.ignoreArmor;
+      const hit = this.equippedChip.applyToHit(currentDmg, initialTarget);
+      currentDmg = hit.damage;
+      isCrit = hit.isCrit;
+      ignoreArmor = hit.ignoreArmor;
     }
 
     initialTarget.takeDamage(currentDmg, DamageType.ELECTRIC, true, allEnemies, ignoreArmor, isCrit);
@@ -687,13 +695,14 @@ export class Tower extends Phaser.GameObjects.Container {
       const nextTarget = pickNearestEnemy(current.x, current.y, candidates);
       if (!nextTarget) break;
       hitList.push(nextTarget);
-      nextTarget.takeDamage(currentDmg * 0.75, DamageType.ELECTRIC, true, allEnemies, ignoreArmor, isCrit);
+      currentDmg *= 0.5;
+      nextTarget.takeDamage(currentDmg, DamageType.ELECTRIC, true, allEnemies, ignoreArmor, isCrit);
       current = nextTarget;
     }
 
     // Desenha arco elétrico em zigue-zague
     this.teslaGraphics.clear();
-    const arcColor = this.tier4Branch?.branchId === 'tesla_storm' ? 0x38bdf8 : 0xfacc15;
+    const arcColor = this.tier4Branch?.branchId === TowerBranchId.TESLA_STORM ? 0x38bdf8 : 0xfacc15;
     this.teslaGraphics.lineStyle(3, arcColor, 1);
     let prevX = this.x;
     let prevY = this.y;
@@ -719,14 +728,10 @@ export class Tower extends Phaser.GameObjects.Container {
     let ignoreArmor = false;
 
     if (this.equippedChip) {
-      const crit = this.equippedChip.checkCritical();
-      if (crit.isCrit) {
-        isCrit = true;
-        finalDmg *= crit.multiplier;
-      }
-      const mod = this.equippedChip.modifyDamage(finalDmg, target);
-      finalDmg = mod.finalDamage;
-      ignoreArmor = mod.ignoreArmor;
+      const hit = this.equippedChip.applyToHit(finalDmg, target);
+      finalDmg = hit.damage;
+      isCrit = hit.isCrit;
+      ignoreArmor = hit.ignoreArmor;
     }
 
     target.takeDamage(finalDmg, DamageType.ELECTRIC, true, allEnemies, ignoreArmor, isCrit);

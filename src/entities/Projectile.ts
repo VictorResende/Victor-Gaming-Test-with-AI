@@ -111,14 +111,10 @@ export class Projectile extends Phaser.GameObjects.Sprite {
     let ignoreArmor = this.pierceArmor;
 
     if (this.modChip) {
-      const critRoll = this.modChip.checkCritical();
-      if (critRoll.isCrit) {
-        isCrit = true;
-        hitDamage *= critRoll.multiplier;
-      }
-      const modResult = this.modChip.modifyDamage(hitDamage, this.target || undefined);
-      hitDamage = modResult.finalDamage;
-      ignoreArmor = ignoreArmor || modResult.ignoreArmor;
+      const hit = this.modChip.applyToHit(hitDamage, this.target || undefined, this.pierceArmor);
+      hitDamage = hit.damage;
+      isCrit = hit.isCrit;
+      ignoreArmor = hit.ignoreArmor;
     }
 
     if (this.splashRadius > 0) {

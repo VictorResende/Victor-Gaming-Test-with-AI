@@ -56,12 +56,25 @@ export enum SpellType {
 }
 
 export enum BiomeType {
-  CANYON = 'CANYON',   // Desfiladeiro dos Dragões
-  TUNDRA = 'TUNDRA',   // Tundra Glacial Ancestral
-  CYBER = 'CYBER',     // Reino Arcano Perdido
-  MAGMA = 'MAGMA',     // Forja Vulcânica dos Titãs
-  RUINS = 'RUINS',     // Ruínas Antigas Esquecidas
-  ORBITAL = 'ORBITAL'  // Santuário Celestial Flutuante
+  FOREST = 'FOREST',
+  RAVINE = 'RAVINE',
+  CITADEL = 'CITADEL',
+  MAGMA = 'MAGMA',
+  RUINS = 'RUINS',
+  PINNACLE = 'PINNACLE'
+}
+
+export enum TowerBranchId {
+  GATLING_VULCAN = 'gatling_vulcan',
+  GATLING_SNIPER = 'gatling_sniper',
+  CANNON_MISSILES = 'cannon_missiles',
+  CANNON_NUCLEAR = 'cannon_nuclear',
+  CRYO_BLIZZARD = 'cryo_blizzard',
+  CRYO_ZERO = 'cryo_zero',
+  LASER_ORBITAL = 'laser_orbital',
+  LASER_PRISM = 'laser_prism',
+  TESLA_STORM = 'tesla_storm',
+  TESLA_PLASMA = 'tesla_plasma'
 }
 
 export enum GameMode {

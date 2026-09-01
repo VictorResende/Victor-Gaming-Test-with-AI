@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { BiomeType, DamageType, EnemyType, GameMode, GameSpeed, HeroClass, ModChipType, SpellType, TacticalModifier, TowerType } from '../core/Constants';
+import { BiomeType, DamageType, EnemyType, GameMode, GameSpeed, HeroClass, ModChipType, SpellType, TacticalModifier, TowerBranchId, TowerType } from '../core/Constants';
 import { LevelData, LEVELS_CONFIG, ObstacleData, Point } from '../config/levelsConfig';
 import { TOWERS_CONFIG, HEROES_CONFIG } from '../config/gameConfig';
 import { getBossRushLevelData } from '../config/bossRushConfig';
@@ -19,6 +19,8 @@ import { AudioManager } from '../managers/AudioManager';
 import { HapticsManager } from '../managers/HapticsManager';
 import { EventBus, GameEvents, BoundBus } from '../core/EventBus';
 import { KeyboardControls } from '../utils/KeyboardControls';
+import { t } from '../i18n/locales';
+import { weatherAnnounceKey } from '../config/weatherCopy';
 
 export class GameScene extends Phaser.Scene {
   public levelData!: LevelData;
@@ -41,9 +43,10 @@ export class GameScene extends Phaser.Scene {
   public shrines: ArcaneShrine[] = [];
   private projectilesPool!: ObjectPool<Projectile>;
   private activeProjectiles: Projectile[] = [];
-  private bus = new BoundBus();
+  private bus = new BoundBus(EventBus);
   private sessionSpellCasts = 0;
   private sessionEarlyCalls = 0;
+  public sessionKills = 0;
   private buildSlotSprites: Phaser.GameObjects.Sprite[] = [];
   private occupiedSlots: Set<string> = new Set();
 
@@ -133,6 +136,7 @@ export class GameScene extends Phaser.Scene {
     this.activeProjectiles = [];
     this.sessionSpellCasts = 0;
     this.sessionEarlyCalls = 0;
+    this.sessionKills = 0;
     this.occupiedSlots.clear();
     this.obstacleContainers.clear();
     this.obstacleDataMap.clear();
@@ -236,6 +240,14 @@ export class GameScene extends Phaser.Scene {
 
       if (this.isDraggingTower) return;
 
+      const tappedEnemy = this.enemies.find(e =>
+        e.isAlive && Phaser.Math.Distance.Between(pointer.worldX, pointer.worldY, e.x, e.y) <= Math.max(36, e.config.size)
+      );
+      if (tappedEnemy) {
+        EventBus.emit(GameEvents.ENEMY_INSPECTED, tappedEnemy);
+        return;
+      }
+
       // Se há uma torre selecionada para construir, detecta clique próximo a qualquer slot
       if (this.selectedTowerTypeToBuild) {
         let closestSlot: { x: number; y: number } | null = null;
@@ -279,7 +291,7 @@ export class GameScene extends Phaser.Scene {
       groundTexture = 'magma_ground';
     } else if (this.levelData.biome === BiomeType.RUINS) {
       groundTexture = 'ruins_ground';
-    } else if (this.levelData.biome === BiomeType.ORBITAL) {
+    } else if (this.levelData.biome === BiomeType.PINNACLE) {
       groundTexture = 'orbital_ground';
     }
 
@@ -307,10 +319,10 @@ export class GameScene extends Phaser.Scene {
       outerColor = 0x090d16;
       pathColor = 0x1e293b;
       innerColor = 0x334155;
-    } else if (this.levelData.biome === BiomeType.ORBITAL) {
-      outerColor = 0x020617;
-      pathColor = 0x1e293b;
-      innerColor = 0x0ea5e9;
+    } else if (this.levelData.biome === BiomeType.PINNACLE) {
+      outerColor = 0x1c1008;
+      pathColor = 0x7c2d12;
+      innerColor = 0xb45309;
     }
 
     this.levelData.paths.forEach(path => {
@@ -381,10 +393,10 @@ export class GameScene extends Phaser.Scene {
         this.add.image(c.x, c.y, 'deco_lava_fissure');
       });
     } else if (this.levelData.biome === BiomeType.RUINS) {
-      // Ruínas Alienígenas: Obeliscos e Teletransportadores
+      // Ruínas arcanas: obeliscos e portais
       const pillarCoords = [{ x: 80, y: 120 }, { x: 80, y: height - 120 }, { x: width - 80, y: 140 }, { x: width - 80, y: height - 120 }];
       pillarCoords.forEach(c => {
-        const pillar = this.add.image(c.x, c.y, 'deco_alien_pillar');
+        const pillar = this.add.image(c.x, c.y, 'deco_torch');
         this.tweens.add({
           targets: pillar,
           y: pillar.y - 8,
@@ -414,20 +426,19 @@ export class GameScene extends Phaser.Scene {
           });
         });
       }
-    } else if (this.levelData.biome === BiomeType.ORBITAL) {
-      // Estação Espacial Zero-G: Painéis Solares e Satélites
-      const solarCoords = [{ x: 90, y: 90 }, { x: 90, y: height - 90 }, { x: width - 90, y: height - 90 }];
-      solarCoords.forEach(c => {
-        this.add.image(c.x, c.y, 'deco_solar_panel');
+    } else if (this.levelData.biome === BiomeType.PINNACLE) {
+      const torchCoords = [{ x: 90, y: 90 }, { x: 90, y: height - 90 }, { x: width - 90, y: height - 90 }];
+      torchCoords.forEach(c => {
+        this.add.image(c.x, c.y, 'deco_torch');
       });
 
-      const satCoords = [{ x: width - 100, y: 110 }, { x: 640, y: 80 }];
-      satCoords.forEach(c => {
-        const sat = this.add.image(c.x, c.y, 'deco_zero_g_satellite');
+      const skullCoords = [{ x: width - 100, y: 110 }, { x: 640, y: 80 }];
+      skullCoords.forEach(c => {
+        const skull = this.add.image(c.x, c.y, 'deco_skull_marker');
         this.tweens.add({
-          targets: sat,
-          y: sat.y - 12,
-          x: sat.x + 8,
+          targets: skull,
+          y: skull.y - 12,
+          x: skull.x + 8,
           rotation: 0.15,
           yoyo: true,
           duration: 3500,
@@ -568,8 +579,8 @@ export class GameScene extends Phaser.Scene {
       this.unlockBuildSlot(obs.x, obs.y);
 
       // Texto de confirmação
-      this.showFloatingText(obs.x, obs.y - 20, `-${obs.clearCost} 💰`, '#facc15');
-      this.showFloatingText(obs.x, obs.y - 40, 'SLOT LIBERADO!', '#22c55e');
+      this.showFloatingText(obs.x, obs.y - 20, t('goldSpent', { cost: obs.clearCost }), '#facc15');
+      this.showFloatingText(obs.x, obs.y - 40, t('slotUnlocked'), '#22c55e');
 
       AudioManager.getInstance().playBuild();
       HapticsManager.getInstance().build();
@@ -584,7 +595,7 @@ export class GameScene extends Phaser.Scene {
         repeat: 3,
         onComplete: () => container.setX(obs.x)
       });
-      this.showFloatingText(obs.x, obs.y - 25, `Requer ${obs.clearCost} 💰!`, '#ef4444');
+      this.showFloatingText(obs.x, obs.y - 25, t('needGold', { cost: obs.clearCost }), '#ef4444');
       HapticsManager.getInstance().tap();
       return false;
     }
@@ -605,7 +616,7 @@ export class GameScene extends Phaser.Scene {
       this.obstacleDataMap.delete(obstacleId);
 
       this.unlockBuildSlot(obs.x, obs.y);
-      this.showFloatingText(obs.x, obs.y - 35, 'DESTRUÍDO POR FEITIÇO!', '#38bdf8');
+      this.showFloatingText(obs.x, obs.y - 35, t('slotSpellCleared'), '#38bdf8');
       AudioManager.getInstance().playCannon();
       HapticsManager.getInstance().cannonShot();
     }
@@ -695,10 +706,10 @@ export class GameScene extends Phaser.Scene {
     } else if (this.levelData.biome === BiomeType.RUINS) {
       emberColor = 0xa855f7;
       emberCount = 18;
-    } else if (this.levelData.biome === BiomeType.ORBITAL) {
+    } else if (this.levelData.biome === BiomeType.PINNACLE) {
       emberColor = 0x38bdf8;
       emberCount = 25;
-    } else if (this.levelData.biome === BiomeType.TUNDRA) {
+    } else if (this.levelData.biome === BiomeType.RAVINE) {
       emberColor = 0xe0f2fe;
       emberCount = 25;
     }
@@ -712,7 +723,7 @@ export class GameScene extends Phaser.Scene {
         Phaser.Math.FloatBetween(0.3, 0.8)
       );
 
-      const yDelta = this.levelData.biome === BiomeType.TUNDRA ? Phaser.Math.Between(80, 160) : -Phaser.Math.Between(60, 140);
+      const yDelta = this.levelData.biome === BiomeType.RAVINE ? Phaser.Math.Between(80, 160) : -Phaser.Math.Between(60, 140);
 
       this.tweens.add({
         targets: ember,
@@ -804,7 +815,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  public evolveCurrentTowerTier4(branchId: string): void {
+  public evolveCurrentTowerTier4(branchId: TowerBranchId): void {
     if (this.activeInspectedTower && this.activeInspectedTower.canEvolveTier4()) {
       const branches = this.activeInspectedTower.config.tier4Branches;
       const branch = branches?.find(b => b.branchId === branchId);
@@ -1089,6 +1100,7 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.bus.on(GameEvents.ENEMY_KILLED, (data: { enemy: Enemy; gold: number; score: number }) => {
+      this.sessionKills += 1;
       this.economyManager.addGold(data.gold);
       this.economyManager.addScore(data.score);
       AudioManager.getInstance().playCoin();
@@ -1149,7 +1161,8 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.bus.on(GameEvents.BOSS_SPAWNED, () => {
-      this.cameras.main.shake(350, 0.012);
+      this.cameras.main.shake(420, 0.016);
+      AudioManager.getInstance().playThunder();
     });
 
     this.bus.on(GameEvents.GOLD_CHANGED, (gold: number) => {
@@ -1232,9 +1245,8 @@ export class GameScene extends Phaser.Scene {
     this.currentWeather = type;
     this.applyWeatherVisuals();
 
-    const label = type === 'CLEAR' ? '☀️ CÉU LIMPO' : (type === 'RAIN' ? '🌧️ CHUVA MÍSTICA' : '⛈️ TEMPESTADE DE TROVÕES');
     const color = type === 'CLEAR' ? '#fde047' : (type === 'RAIN' ? '#38bdf8' : '#a855f7');
-    this.showFloatingText(this.scale.width / 2, 70, label, color);
+    this.showFloatingText(this.scale.width / 2, 70, t(weatherAnnounceKey(type)), color);
 
     EventBus.emit(GameEvents.WEATHER_CHANGED, { weather: type });
   }
@@ -1383,7 +1395,7 @@ export class GameScene extends Phaser.Scene {
     HapticsManager.getInstance().cannonShot();
 
     // Anúncio Épico
-    this.showFloatingText(width / 2, 100, '🐉 PASSAGEM DO DRAGÃO ANCESTRAL!', '#ef4444');
+    this.showFloatingText(width / 2, 100, t('dragonFlyby'), '#ef4444');
 
     // Trajetória aérea diagonal
     const startX = -120;
@@ -1676,6 +1688,7 @@ export class GameScene extends Phaser.Scene {
     this.activeProjectiles.forEach(p => {
       p.isActive = false;
       p.setVisible(false);
+      this.projectilesPool.release(p);
     });
     this.activeProjectiles = [];
     if (this.scene.get('UIScene')?.scene.isActive() || this.scene.isSleeping('UIScene')) {

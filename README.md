@@ -1,80 +1,36 @@
-# 🚀 Galaxy Defenders - Tower Defense 2D Mobile (Android & iOS)
+# Reino dos Guardiões: Defesa Arcana
 
-Um jogo completo em 2D no estilo **Tower Defense** desenvolvido com **Phaser 3**, **TypeScript**, **Vite** e **Capacitor**, otimizado para dispositivos móveis **Android e iOS**.
+Medieval-fantasy tower defense. Defend the realm with towers, a hero, and arcane magic.
 
----
+**Ship target:** Android (Capacitor) plus the existing web/dev build. The iOS project in the repo is not a current release target.
 
-## 📱 Recursos & Inovações
+**Art/audio:** Procedural sprites and synthesized SFX for now. Hybrid authored art and real music tracks are deferred until after the current maps are stable.
 
-- **⚡ Cross-Platform Nativo**: Uma única base de código em TypeScript que compila tanto para **Android** (via Android Studio / APK) quanto para **iOS** (via Xcode / App Store).
-- **🎯 5 Torres Estratégicas com 3 Níveis**:
-  - *Metralhadora Gatling*: Alta cadência contra alvos velozes.
-  - *Canhão de Artilharia*: Projéteis explosivos com dano em área (AoE).
-  - *Torre Criogênica*: Ondas de congelamento e desaceleração.
-  - *Feixe de Laser*: Dano contínuo de alta energia que penetra blindagens.
-  - *Torre Tesla*: Arcos elétricos que saltam entre múltiplos alvos em cadeia.
-- **👾 5 Classes de Inimigos**: Batedores rápidos, Soldados blindados, Tanques pesados, Drones voadores e Chefes (Boss Titãs).
-- **🕹️ Controles Touch & Mobile First**:
-  - Menu inferior touch-friendly com cards de construção e indicadores de custo.
-  - Painel flutuante de inspeção: troca de prioridade de mira (*Primeiro, Mais Forte, Mais Próximo, etc.*), upgrade e venda.
-  - Controles de velocidade (*Pausa tática, 1x, 2x, 4x*).
-- **☄️ Habilidades Ativas Globais (Spells)**:
-  - *Chuva de Meteoros*: Dano em área massivo.
-  - *Pulso EMP*: Paralisa e desacelera todos os invasores.
-  - *Drop de Suprimentos*: Injeção emergencial de ouro.
-- **🌳 Árvore de Tecnologias (Meta-Progressão)**: Gaste estrelas conquistadas para desbloquear bônus permanentes.
-- **🏆 Conquistas & Salvamento Offline**: Armazenamento seguro via `@capacitor/preferences` e feedback tátil com `@capacitor/haptics`.
+## Play loop
 
----
+Place towers on build slots, upgrade them through three tiers (and a tier-4 branch), command a hero, and hold the path against waves. Gold, lives, and wave pressure are the 30-second loop; stars, relics, and the grimoire are the meta loop.
 
-## 🛠️ Como Rodar no Computador (Desenvolvimento Web)
+## Stack
 
-1. **Instalar Dependências**:
-   ```bash
-   npm install
-   ```
+Phaser 3 · TypeScript · Vite · Capacitor (Android)
 
-2. **Iniciar Servidor de Desenvolvimento**:
-   ```bash
-   npm run dev
-   ```
-   Abra no navegador em `http://localhost:3000` e ative o modo de dispositivo móvel nas ferramentas de desenvolvedor (F12) para simular toque e resoluções de smartphone (Landscape).
+## Run (web)
 
-3. **Gerar Build de Produção Web**:
-   ```bash
-   npm run build
-   ```
+```bash
+npm install
+npm run dev
+```
 
----
+Open `http://localhost:3000`. Use landscape / mobile emulation for the intended layout.
 
-## 🤖 Como Gerar o App Nativo para Android
+## Android
 
-1. **Compilar e Sincronizar**:
-   ```bash
-   npm run build
-   npx cap add android
-   npx cap sync android
-   ```
+```bash
+npm run build
+npx cap sync android
+npx cap open android
+```
 
-2. **Abrir no Android Studio**:
-   ```bash
-   npx cap open android
-   ```
-   No Android Studio, clique em **Build > Build Bundle(s) / APK(s) > Build APK(s)** ou conecte seu celular Android via USB com depuração ativada e clique em **Run**.
+## Product notes
 
----
-
-## 🍏 Como Gerar o App Nativo para iOS (iPhone / iPad)
-
-1. **Compilar e Sincronizar**:
-   ```bash
-   npm run build
-   npx cap add ios
-   npx cap sync ios
-   ```
-
-2. **Abrir no Xcode**:
-   ```bash
-   npx cap open ios
-   ```
-   No Xcode, selecione o simulador do iPhone ou seu aparelho físico conectado e clique em **Play/Run**.
+See `docs/GAME_DIRECTOR_REPORT.md` for the living director plan, sprint status, and what is frozen.
