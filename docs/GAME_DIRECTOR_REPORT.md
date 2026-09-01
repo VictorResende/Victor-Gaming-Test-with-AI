@@ -390,3 +390,11 @@ Beyond libraries, the following Claude Code skills are installed locally (`~/.cl
 | `accessibility` | Section 5 item 12 (colorblind-safe palettes, reduced motion) |
 
 These don't need to be invoked manually in most cases — Claude Code auto-selects a relevant skill when a request matches its description (e.g. asking to "add Spanish localization" will surface `i18n-localization`; "set up the Android release pipeline" will surface `android-cicd`).
+
+---
+
+## 11. Architecture Evolution & Godot 4 Migration Plan
+
+For detailed architectural mapping, code parity comparisons, and a 6-phase migration roadmap from Phaser 3 / TypeScript to **Godot Engine 4.3+**, see:
+👉 **[docs/GODOT_4_MIGRATION_PLAN.md](file:///Users/victorresende/Game/docs/GODOT_4_MIGRATION_PLAN.md)**
+
