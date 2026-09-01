@@ -10,6 +10,7 @@ export class HeroHudWidget {
   private xpFill: Phaser.GameObjects.Graphics | null = null;
   private xpText: Phaser.GameObjects.Text | null = null;
   private selection: Phaser.GameObjects.Graphics | null = null;
+  private skillRing: Phaser.GameObjects.Graphics | null = null;
 
   create(scene: Phaser.Scene, x: number, y: number, hero: Hero): void {
     const root = scene.add.container(x, y);
@@ -40,10 +41,24 @@ export class HeroHudWidget {
     this.xpFill.fillRoundedRect(12, 8, 0, 6, 3);
     this.xpText = scene.add.text(39, 11, `${hero.currentXp}/${hero.xpToNextLevel}`, hudStyle('8px', '#e0f2fe')).setOrigin(0.5);
 
-    root.add([bg, this.selection, portrait, this.title, hpBg, this.hpFill, this.hpText, xpBg, this.xpFill, this.xpText]);
+    this.skillRing = scene.add.graphics();
+
+    root.add([bg, this.selection, portrait, this.title, hpBg, this.hpFill, this.hpText, xpBg, this.xpFill, this.xpText, this.skillRing]);
     bindControl(root, 128, 64, () => {
       hero.setSelected(!hero.isSelected);
     });
+  }
+
+  public refreshSkill(cooldownRatio: number): void {
+    if (!this.skillRing) return;
+    this.skillRing.clear();
+    if (cooldownRatio > 0) {
+      this.skillRing.fillStyle(0x000000, 0.55);
+      this.skillRing.slice(-24, 0, 22, Phaser.Math.DegToRad(-90), Phaser.Math.DegToRad(-90 + 360 * cooldownRatio), true);
+      this.skillRing.fillPath();
+      this.skillRing.lineStyle(2, 0xef4444, 0.8);
+      this.skillRing.strokePath();
+    }
   }
 
   setSelected(on: boolean): void {
