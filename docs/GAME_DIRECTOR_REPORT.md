@@ -393,8 +393,10 @@ These don't need to be invoked manually in most cases — Claude Code auto-selec
 
 ---
 
-## 11. Architecture Evolution & Godot 4 Migration Plan
+## 11. Archived Godot 4 Migration Blueprint
 
-For detailed architectural mapping, code parity comparisons, and a 6-phase migration roadmap from Phaser 3 / TypeScript to **Godot Engine 4.3+**, see:
-👉 **[docs/GODOT_4_MIGRATION_PLAN.md](file:///Users/victorresende/Game/docs/GODOT_4_MIGRATION_PLAN.md)**
+*Active development continues 100% focused on the **TypeScript / Phaser 3 + Capacitor** production stack.*
+
+For reference, the architectural mapping, code parity comparisons, and GDScript porting resources have been archived:
+👉 **[archive/GODOT_4_MIGRATION_PLAN.md](file:///Users/victorresende/Game/archive/GODOT_4_MIGRATION_PLAN.md)** (Archived Godot 4 GDScript implementation in `archive/godot-port/`)
 
