@@ -46,6 +46,17 @@ export class AudioManager {
     this.musicGainNode.gain.setValueAtTime(musicVol, this.ctx.currentTime);
   }
 
+  public crossfadeMusic(targetVolumeMultiplier: number, durationSec = 1.0): void {
+    if (!this.ctx || !this.musicGainNode) return;
+    const settings = SaveManager.getInstance().getData().settings;
+    const baseMusicVol = settings.musicEnabled ? (settings.musicVolume ?? 0.8) : 0;
+    const finalVol = Math.max(0, Math.min(1, baseMusicVol * targetVolumeMultiplier));
+    const now = this.ctx.currentTime;
+    this.musicGainNode.gain.cancelScheduledValues(now);
+    this.musicGainNode.gain.setValueAtTime(this.musicGainNode.gain.value, now);
+    this.musicGainNode.gain.linearRampToValueAtTime(finalVol, now + durationSec);
+  }
+
   public getSfxDestination(): AudioNode {
     if (!this.sfxGainNode && this.ctx) {
       this.sfxGainNode = this.ctx.createGain();

@@ -74,12 +74,33 @@ export class LevelSelectScene extends Phaser.Scene {
       8: '🏛️', 9: '🧊', 10: '🔥', 11: '👑'
     };
 
+    const cardCoords: Array<{ x: number; y: number; unlocked: boolean }> = [];
     LEVELS_CONFIG.forEach((level, index) => {
       const col = index % cols;
       const row = Math.floor(index / cols);
+      const cx = startX + col * (cardWidth + colSpacing);
+      const cy = startY + row * rowSpacing;
+      cardCoords.push({ x: cx, y: cy, unlocked: save.unlockedLevels.includes(level.id) });
+    });
+
+    const pathGraphics = this.add.graphics();
+    for (let i = 0; i < cardCoords.length - 1; i++) {
+      const current = cardCoords[i];
+      const next = cardCoords[i + 1];
+      const isRouteUnlocked = current.unlocked && next.unlocked;
+
+      pathGraphics.lineStyle(isRouteUnlocked ? 3 : 1.5, isRouteUnlocked ? 0xfbbf24 : 0x3f3f46, isRouteUnlocked ? 0.75 : 0.35);
+      pathGraphics.beginPath();
+      pathGraphics.moveTo(current.x, current.y);
+      pathGraphics.lineTo(next.x, next.y);
+      pathGraphics.strokePath();
+    }
+
+    LEVELS_CONFIG.forEach((level, index) => {
+      const pos = cardCoords[index];
       this.createLevelCard(
-        startX + col * (cardWidth + colSpacing),
-        startY + row * rowSpacing,
+        pos.x,
+        pos.y,
         cardWidth,
         cardHeight,
         level,

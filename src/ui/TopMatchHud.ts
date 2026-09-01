@@ -150,12 +150,29 @@ export class TopMatchHud {
   }
 
   paintSpeed(speed: GameSpeed): void {
+    const speedColors: Record<GameSpeed, string> = {
+      [GameSpeed.PAUSED]: '#94a3b8',
+      [GameSpeed.NORMAL]: '#38bdf8',
+      [GameSpeed.FAST]: '#fbbf24',
+      [GameSpeed.ULTRA]: '#ef4444'
+    };
     this.speedButtons.forEach((btn, sp) => {
       const bg = btn.getAt(0) as Phaser.GameObjects.Graphics;
       const label = btn.getAt(1) as Phaser.GameObjects.Text;
       const isCurrent = sp === speed;
-      paintGlassRect(bg, -18, -18, 36, 36, 10, isCurrent);
-      label.setColor(isCurrent ? UI.text.amber : UI.text.muted);
+      paintGlassRect(bg, -18, -18, 36, 36, 10, isCurrent, isCurrent ? (sp === GameSpeed.ULTRA ? 0xef4444 : sp === GameSpeed.FAST ? 0xfbbf24 : 0x38bdf8) : undefined);
+      label.setColor(isCurrent ? speedColors[sp] : UI.text.muted);
+
+      if (isCurrent && sp !== GameSpeed.PAUSED) {
+        btn.setScale(1.15);
+        btn.scene.tweens.add({
+          targets: btn,
+          scaleX: 1,
+          scaleY: 1,
+          duration: 180,
+          ease: 'Back.easeOut'
+        });
+      }
     });
   }
 }

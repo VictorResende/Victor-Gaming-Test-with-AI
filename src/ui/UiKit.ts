@@ -243,12 +243,13 @@ export function paintGlassRect(
   w: number,
   h: number,
   radius = 12,
-  selected = false
+  selected = false,
+  customStroke?: number
 ): void {
   g.clear();
   g.fillStyle(selected ? 0x1c1917 : UI.color.panelHi, selected ? 1 : 0.96);
   g.fillRoundedRect(x, y, w, h, radius);
-  g.lineStyle(1, selected ? UI.color.amber : UI.color.stroke, selected ? 1 : 0.9);
+  g.lineStyle(1, customStroke ?? (selected ? UI.color.amber : UI.color.stroke), selected ? 1 : 0.9);
   g.strokeRoundedRect(x, y, w, h, radius);
 }
 

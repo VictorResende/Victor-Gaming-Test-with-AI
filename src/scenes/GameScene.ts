@@ -676,21 +676,44 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private showFloatingText(x: number, y: number, text: string, color = '#ffffff'): void {
+  public showFloatingText(x: number, y: number, text: string, color: string): void {
+    const isCritical = text.includes('CRÍT') || text.includes('💥');
+    const isGold = text.includes('G') || text.includes('💰');
+
     const txt = this.add.text(x, y, text, {
       fontFamily: 'system-ui, sans-serif',
-      fontSize: '13px',
-      fontStyle: '700',
+      fontSize: isCritical ? '15px' : isGold ? '14px' : '13px',
+      fontStyle: isCritical ? '800' : '700',
       color,
       stroke: '#000000',
-      strokeThickness: 3
+      strokeThickness: isCritical ? 4 : 3
     }).setOrigin(0.5);
+
+    if (isCritical || isGold) {
+      txt.setScale(0.6);
+      this.tweens.add({
+        targets: txt,
+        scaleX: 1.2,
+        scaleY: 1.2,
+        duration: 120,
+        ease: 'Back.easeOut',
+        onComplete: () => {
+          this.tweens.add({
+            targets: txt,
+            scaleX: 1.0,
+            scaleY: 1.0,
+            duration: 100
+          });
+        }
+      });
+    }
 
     this.tweens.add({
       targets: txt,
-      y: y - 25,
+      y: y - 28,
+      x: x + Phaser.Math.Between(-8, 8),
       alpha: 0,
-      duration: 800,
+      duration: isCritical ? 950 : 800,
       onComplete: () => txt.destroy()
     });
   }
